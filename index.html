@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLUXO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        /* --- DESIGN SYSTEM --- */
+        :root {
+            --primary: #6366f1; /* Indigo */
+            --accent: #a855f7;  /* Roxo */
+            --success: #10b981; /* Verde */
+            --warning: #f59e0b; /* Laranja */
+            --danger: #ef4444;  /* Vermelho */
+            --bg-dark: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.75);
+            --border: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --radius: 12px;
+            --glass: blur(14px) saturate(140%);
+        }
+
+        * { box-sizing: border-box; outline: none; }
+        
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.1), transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.1), transparent 20%);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* --- LAYOUT --- */
+        #app { display: flex; width: 100%; height: 100%; }
+        
+        aside {
+            width: 260px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        .brand {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        nav button {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            width: 100%;
+            padding: 12px 16px;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 10px;
+            font-weight: 500;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+            margin-bottom: 4px;
+        }
+        nav button:hover { color: var(--text-main); background: rgba(255,255,255,0.05); }
+        nav button.active {
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+        nav button i { font-size: 18px; }
+
+        main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+
+        header {
+            padding: 20px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            background: rgba(15, 23, 42, 0.4);
+        }
+
+        .view-content { flex: 1; padding: 32px; overflow-y: auto; scroll-behavior: smooth; }
+
+        /* --- UI ELEMENTS --- */
+        .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 24px; }
+        .col-4 { grid-column: span 4; }
+        .col-6 { grid-column: span 6; }
+        .col-8 { grid-column: span 8; }
+        .col-12 { grid-column: span 12; }
+
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        h3 { margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: white; display: flex; justify-content: space-between; align-items: center; }
+        .muted { color: var(--text-muted); font-size: 13px; }
+
+        input, select, textarea {
+            width: 100%;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            font-size: 14px;
+        }
+        input:focus, textarea:focus, select:focus { border-color: var(--primary); }
+        
+        .btn {
+            padding: 9px 18px;
+            border-radius: 8px;
+            border: none;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+            display: inline-flex; align-items: center; gap: 6px;
+            transition: filter 0.2s;
+        }
+        .btn:hover { filter: brightness(1.1); }
+        .btn.ghost { background: rgba(255,255,255,0.05); border: 1px solid var(--border); }
+        .btn.ghost:hover { background: rgba(255,255,255,0.1); }
+        .btn.danger { background: rgba(220, 38, 38, 0.15); color: #fca5a5; border: 1px solid rgba(220, 38, 38, 0.4); }
+        .btn.danger:hover { background: rgba(220, 38, 38, 0.3); }
+
+        .tag-pill {
+            display: inline-block; padding: 2px 8px; border-radius: 12px; 
+            font-size: 10px; background: rgba(255,255,255,0.1); margin-right: 4px; color: #cbd5e1;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+        /* --- MODULE SPECIFICS --- */
+        /* Kanban */
+        .kanban-board { display: flex; gap: 16px; overflow-x: auto; height: 100%; padding-bottom: 10px; }
+        .kanban-col { min-width: 300px; background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border); border-radius: 12px; padding: 12px; height: fit-content; max-height: 100%; display: flex; flex-direction: column; }
+        .kanban-card { background: rgba(255,255,255,0.05); padding: 14px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
+        .kanban-card:hover { border-color: var(--primary); background: rgba(255,255,255,0.08); transform: translateY(-2px); }
+        
+        /* Calendar */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .cal-head { text-align: center; color: var(--text-muted); font-weight: 600; padding: 10px; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
+        .cal-day { min-height: 100px; background: rgba(255,255,255,0.02); border-radius: 8px; padding: 6px; cursor: pointer; border: 1px solid transparent; }
+        .cal-day:hover { border-color: var(--border); background: rgba(255,255,255,0.04); }
+        .event-dot { font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; cursor: pointer; transition: transform 0.1s; }
+        .event-dot:hover { transform: scale(1.02); }
+        
+        /* Event Types Colors */
+        .ev-type-meeting { background: rgba(168, 85, 247, 0.2); color: #d8b4fe; } /* Purple */
+        .ev-type-daily { background: rgba(59, 130, 246, 0.2); color: #93c5fd; } /* Blue */
+        .ev-type-deadline { background: rgba(239, 68, 68, 0.2); color: #fca5a5; } /* Red */
+        .ev-type-other { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; } /* Gray */
+
+        /* Toast & Modal */
+        #toast-container { position: fixed; bottom: 30px; right: 30px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: #1e293b; border: 1px solid var(--border); color: white; padding: 14px 24px; border-radius: 8px; display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); animation: slideIn 0.3s; }
+
+        #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 1000; justify-content: center; align-items: center; }
+        #modal.show { display: flex; animation: fadeIn 0.2s; }
+        .modal-content { background: #1e293b; width: 500px; max-width: 90%; border-radius: 16px; padding: 24px; border: 1px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+        @keyframes fadeIn { from {opacity: 0} to {opacity: 1} }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <aside>
+        <div class="brand">
+            <i class="ph ph-stack" style="color: #a855f7;"></i> FLUXO
+        </div>
+        <nav id="menu"></nav>
+        <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border)">
+            <div class="muted" style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+                <span>Storage</span>
+                <span id="storageSize">0%</span>
+            </div>
+            <div style="width:100%; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; margin-top:6px;">
+                <div id="storageBar" style="width:0%; height:100%; background:var(--accent); border-radius:2px;"></div>
+            </div>
+        </div>
+    </aside>
+
+    <main>
+        <header>
+            <div>
+                <h1 id="pageTitle" style="margin:0; font-size:20px; font-weight:700;">Dashboard</h1>
+                <div id="pageSub" class="muted">Visão geral do sistema</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn ghost" onclick="app.exportData()"><i class="ph ph-download-simple"></i> Backup</button>
+                <button class="btn ghost" onclick="document.getElementById('importFile').click()"><i class="ph ph-upload-simple"></i> Restaurar</button>
+                <input type="file" id="importFile" hidden onchange="app.importData(this)">
+            </div>
+        </header>
+        <div id="content" class="view-content"></div>
+    </main>
+</div>
+
+<div id="modal">
+    <div class="modal-content" id="modalInner"></div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+/**
+ * FLUXO v5.0 - Versão Estável + Features
+ * Restaura todas as funcionalidades detalhadas da V3 e integra as novas da V4 (Multi-Kanban, Eventos Categorizados, Dashboard Rico).
+ */
+
+const VIEWS = {
+    dashboard: { icon: 'ph-squares-four', label: 'Dashboard' },
+    tasks:     { icon: 'ph-check-circle', label: 'Tarefas' },
+    kanban:    { icon: 'ph-kanban', label: 'Kanban Projects' },
+    calendar:  { icon: 'ph-calendar', label: 'Agenda & Eventos' },
+    notes:     { icon: 'ph-notebook', label: 'Notas' },
+    habits:    { icon: 'ph-fire', label: 'Hábitos' },
+    pomodoro:  { icon: 'ph-timer', label: 'Pomodoro' },
+    snippets:  { icon: 'ph-code', label: 'Snippets' },
+    bookmarks: { icon: 'ph-bookmark', label: 'Bookmarks' },
+    roadmap:   { icon: 'ph-path', label: 'Roadmap' },
+    vault:     { icon: 'ph-files', label: 'Vault (PDF)' }
+};
+
+const DEFAULT_STATE = {
+    tasks: [],
+    boards: [], 
+    cards: [],
+    events: [], // Agora inclui 'type'
+    notes: [],
+    habits: [], // Agora inclui 'tags'
+    pomodoro: { history: [], settings: { work: 25, break: 5 } },
+    snippets: [],
+    bookmarks: [],
+    roadmap: [],
+    docs: [] 
+};
+
+const EV_CONFIG = {
+    'meeting': { icon: 'ph-users', color: '#a855f7', label: 'Reunião' },
+    'daily': { icon: 'ph-video-camera', color: '#3b82f6', label: 'Daily' },
+    'deadline': { icon: 'ph-warning', color: '#ef4444', label: 'Prazo' },
+    'other': { icon: 'ph-calendar-blank', color: '#94a3b8', label: 'Outro' }
+};
+
+const app = {
+    state: {},
+    timerInterval: null,
+    calendarCursor: new Date(),
+    currentBoardId: null, // Novo: ID do board Kanban ativo
+    
+    init() {
+        this.loadState();
+        this.renderMenu();
+        this.router('dashboard');
+        this.updateStorageStats();
+        document.getElementById('modal').addEventListener('click', (e) => {
+            if (e.target.id === 'modal') this.closeModal();
+        });
+    },
+
+    /* --- CORE & STATE --- */
+    loadState() {
+        // Usa 'fluxo_v5' para evitar conflito com versões anteriores
+        const raw = localStorage.getItem('fluxo_v5');
+        this.state = raw ? { ...DEFAULT_STATE, ...JSON.parse(raw) } : JSON.parse(JSON.stringify(DEFAULT_STATE));
+        if(!this.state.boards.length) this.seedKanban();
+        // Garante que o currentBoardId esteja setado se houver boards
+        this.currentBoardId = this.state.boards[0]?.id || null;
+    },
+
+    saveState() {
+        try {
+            localStorage.setItem('fluxo_v5', JSON.stringify(this.state));
+            this.updateStorageStats();
+        } catch (e) {
+            this.toast('Limite de armazenamento atingido!', 'error');
+        }
+    },
+
+    router(viewName) {
+        const conf = VIEWS[viewName];
+        if(!conf) return;
+        
+        document.getElementById('pageTitle').innerText = conf.label;
+        document.getElementById('pageSub').innerText = viewName === 'dashboard' ? 'Bem-vindo de volta.' : `Gerenciamento de ${conf.label}`;
+        
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        const btn = document.querySelector(`button[data-view="${viewName}"]`);
+        if(btn) btn.classList.add('active');
+
+        const root = document.getElementById('content');
+        root.innerHTML = '';
+        if(this[`render_${viewName}`]) this[`render_${viewName}`](root);
+    },
+
+    renderMenu() {
+        document.getElementById('menu').innerHTML = Object.keys(VIEWS).map(k => 
+            `<button onclick="app.router('${k}')" data-view="${k}"><i class="ph ${VIEWS[k].icon}"></i> ${VIEWS[k].label}</button>`
+        ).join('');
+    },
+
+    seedKanban() {
+        const boardId = this.uid();
+        this.state.boards = [{ id: boardId, title: 'Projeto Principal' }];
+        this.state.cards = [
+            { id: this.uid(), boardId, col: 'todo', title: 'Configurar FLUXO', desc: 'Conhecer todas as funcionalidades' }
+        ];
+        this.currentBoardId = boardId;
+        this.saveState();
+    },
+
+    /* --- UTILS & MODALS --- */
+    uid: () => Date.now().toString(36) + Math.random().toString(36).substr(2),
+    
+    toast(msg, type='info') {
+        const el = document.createElement('div');
+        el.className = 'toast';
+        const icon = type === 'error' ? 'ph-warning' : 'ph-check-circle';
+        const color = type === 'error' ? '#fca5a5' : '#86efac';
+        el.innerHTML = `<i class="ph ${icon}" style="color:${color}; font-size:20px;"></i> <span>${msg}</span>`;
+        document.getElementById('toast-container').appendChild(el);
+        setTimeout(() => el.remove(), 3500);
+    },
+
+    openModal(html) {
+        const m = document.getElementById('modal');
+        document.getElementById('modalInner').innerHTML = html;
+        m.classList.add('show');
+    },
+
+    closeModal() {
+        document.getElementById('modal').classList.remove('show');
+        setTimeout(() => document.getElementById('modalInner').innerHTML = '', 200);
+    },
+
+    confirmModal(msg, onConfirm) {
+        this.openModal(`
+            <h3>Confirmação</h3>
+            <p class="muted" style="margin: 20px 0; font-size:15px">${msg}</p>
+            <div class="modal-actions">
+                <button class="btn ghost" onclick="app.closeModal()">Cancelar</button>
+                <button class="btn" id="confirmBtn">Confirmar</button>
+            </div>
+        `);
+        document.getElementById('confirmBtn').onclick = () => { onConfirm(); this.closeModal(); };
+    },
+
+    promptModal(title, placeholder, onConfirm, initialValue = '') {
+        this.openModal(`
+            <h3>${title}</h3>
+            <input id="promptInput" placeholder="${placeholder}" value="${initialValue}" style="margin-top:10px">
+            <div class="modal-actions">
+                <button class="btn ghost" onclick="app.closeModal()">Cancelar</button>
+                <button class="btn" id="promptBtn">Salvar</button>
+            </div>
+        `);
+        setTimeout(() => document.getElementById('promptInput').focus(), 100);
+        const submit = () => {
+            const val = document.getElementById('promptInput').value;
+            if(val) { onConfirm(val); this.closeModal(); }
+        };
+        document.getElementById('promptBtn').onclick = submit;
+        document.getElementById('promptInput').onkeypress = (e) => { if(e.key === 'Enter') submit(); };
+    },
+
+    /* --- DATA MGMT --- */
+    exportData() {
+        const blob = new Blob([JSON.stringify(this.state)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `fluxo_backup_v5.json`;
+        a.click();
+        this.toast('Backup exportado!');
+    },
+
+    importData(input) {
+        const file = input.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try { this.state = JSON.parse(e.target.result); this.saveState(); location.reload(); } 
+            catch(err) { this.toast('Arquivo inválido', 'error'); }
+        };
+        reader.readAsText(file);
+    },
+
+    updateStorageStats() {
+        const used = new Blob([JSON.stringify(this.state)]).size;
+        const pct = Math.min(100, (used/5000000)*100).toFixed(1);
+        document.getElementById('storageSize').innerText = `${pct}%`;
+        document.getElementById('storageBar').style.width = `${pct}%`;
+    },
+
+    /* ==================== VIEWS ==================== */
+
+    // 1. DASHBOARD (Rico)
+    render_dashboard(root) {
+        const tasks = this.state.tasks;
+        const today = new Date().toISOString().slice(0,10);
+        
+        // Filter and sort upcoming events
+        const upcomingEvents = this.state.events
+            .filter(e => e.date >= today)
+            .sort((a,b) => new Date(a.date) - new Date(b.date))
+            .slice(0, 4);
+
+        // Bookmarks
+        const bookmarks = this.state.bookmarks.slice(0, 3);
+
+        root.innerHTML = `
+            <div class="grid">
+                <div class="col-4" style="display:flex; flex-direction:column; gap:24px">
+                    <div class="card">
+                        <h3>Status Rápido</h3>
+                        <div style="display:flex; gap:16px; margin-bottom:16px">
+                            <div style="flex:1; background:rgba(99,102,241,0.1); padding:12px; border-radius:8px">
+                                <div class="muted">Tarefas</div>
+                                <div style="font-size:24px; font-weight:700; color:var(--primary)">${tasks.filter(t=>!t.done).length}</div>
+                            </div>
+                            <div style="flex:1; background:rgba(168,85,247,0.1); padding:12px; border-radius:8px">
+                                <div class="muted">Kanban Cards</div>
+                                <div style="font-size:24px; font-weight:700; color:var(--accent)">${this.state.cards.length}</div>
+                            </div>
+                        </div>
+                        <button class="btn ghost" style="width:100%" onclick="app.router('kanban')">Ir para Projetos</button>
+                    </div>
+
+                    <div class="card" style="flex:1">
+                        <h3><i class="ph ph-bookmark"></i> Bookmarks Importantes</h3>
+                        <div style="display:flex; flex-direction:column; gap:8px">
+                            ${bookmarks.length ? bookmarks.map(b => `
+                                <a href="${b.url}" target="_blank" style="text-decoration:none; color:var(--text-muted); display:flex; align-items:center; gap:8px; padding:8px; border-radius:6px; background:rgba(255,255,255,0.03); font-size:13px; transition:background 0.2s">
+                                    <img src="https://www.google.com/s2/favicons?domain=${b.url}&sz=32" width="16" height="16">
+                                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text-main);">${b.title}</span>
+                                </a>
+                            `).join('') : '<div class="muted">Nenhum favorito</div>'}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-4 card">
+                    <h3><i class="ph ph-calendar-check"></i> Próximos Eventos</h3>
+                    <div style="display:flex; flex-direction:column; gap:12px">
+                        ${upcomingEvents.length ? upcomingEvents.map(ev => {
+                            const config = EV_CONFIG[ev.type] || EV_CONFIG['other'];
+                            return `
+                                <div style="display:flex; gap:12px; align-items:center; padding:10px; background:rgba(255,255,255,0.03); border-radius:8px; border-left:3px solid ${config.color}">
+                                    <div style="background:rgba(255,255,255,0.05); width:40px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0">
+                                        <i class="ph ${config.icon}" style="color:${config.color}; font-size:20px"></i>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight:600; font-size:14px">${ev.title}</div>
+                                        <div class="muted" style="font-size:11px">${new Date(ev.date).toLocaleDateString()} • ${config.label}</div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('') : '<div class="muted">Agenda livre.</div>'}
+                    </div>
+                    <button class="btn ghost" style="width:100%; margin-top:16px" onclick="app.router('calendar')">Ver Agenda Completa</button>
+                </div>
+
+                <div class="col-4 card">
+                    <h3><i class="ph ph-fire"></i> Hábitos Ativos</h3>
+                    <div style="display:flex; flex-direction:column; gap:10px; overflow-y:auto; max-height:400px">
+                        ${this.state.habits.slice(0, 5).map(h => {
+                            const done = h.streaks[today];
+                            return `
+                            <div style="padding:10px; border-radius:8px; background:rgba(255,255,255,0.03); display:flex; justify-content:space-between; align-items:center">
+                                <div>
+                                    <div style="font-weight:600">${h.name}</div>
+                                    <div style="margin-top:4px">
+                                        ${(h.tags||[]).map(t => `<span class="tag-pill">#${t}</span>`).join('')}
+                                    </div>
+                                </div>
+                                <div style="width:24px; height:24px; border-radius:50%; background:${done ? 'var(--accent)' : 'rgba(255,255,255,0.1)'}; display:flex; align-items:center; justify-content:center">
+                                    ${done ? '<i class="ph ph-check" style="color:white; font-size:12px"></i>' : ''}
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    <button class="btn ghost" style="width:100%; margin-top:16px" onclick="app.router('habits')">Gerenciar Hábitos</button>
+                </div>
+            </div>
+        `;
+    },
+
+    // 2. TASKS (Restaurado com integração Kanban)
+    render_tasks(root) {
+        const renderList = () => {
+            const list = document.getElementById('taskList');
+            list.innerHTML = this.state.tasks.length === 0 ? '<div class="muted text-center" style="padding:20px">Nenhuma tarefa.</div>' : 
+            this.state.tasks.map(t => `
+                <div class="card" style="margin-bottom:8px; padding:12px; display:flex; align-items:center; gap:12px; opacity:${t.done?0.6:1}; border-left: 3px solid ${t.done?'#34d399':'#6366f1'}">
+                    <div onclick="app.toggleTask('${t.id}')" style="cursor:pointer; width:24px; height:24px; border-radius:6px; border:2px solid ${t.done?'#34d399':'#6366f1'}; background:${t.done?'#34d399':'transparent'}; display:flex; align-items:center; justify-content:center">
+                        ${t.done ? '<i class="ph ph-check" style="color:#0f172a"></i>' : ''}
+                    </div>
+                    <div style="flex:1">
+                        <div style="font-weight:500; text-decoration:${t.done?'line-through':''}">${t.title}</div>
+                        <div class="muted" style="font-size:11px">${t.tag ? '#'+t.tag : ''}</div>
+                    </div>
+                    <div style="display:flex; gap:6px">
+                        <button class="btn ghost" style="padding:6px 10px" title="Mover para Kanban" onclick="app.moveTaskToKanban('${t.id}')"><i class="ph ph-kanban"></i></button>
+                        <button class="btn danger" style="padding:6px 10px" onclick="app.delTask('${t.id}')"><i class="ph ph-trash"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        root.innerHTML = `
+            <div class="grid">
+                <div class="col-12 card" style="display:flex; gap:10px">
+                    <input id="newTask" placeholder="O que você precisa fazer?" onkeypress="if(event.key==='Enter') document.getElementById('addT').click()">
+                    <input id="newTag" placeholder="Tag" style="width:120px">
+                    <button id="addT" class="btn">Adicionar</button>
+                </div>
+                <div class="col-12" id="taskList"></div>
+            </div>
+        `;
+        
+        document.getElementById('addT').onclick = () => {
+            const title = document.getElementById('newTask').value;
+            const tag = document.getElementById('newTag').value;
+            if(!title) return;
+            this.state.tasks.unshift({ id: this.uid(), title, tag, done: false });
+            this.saveState();
+            renderList();
+            document.getElementById('newTask').value = '';
+        };
+        
+        this.toggleTask = (id) => { const t = this.state.tasks.find(x=>x.id===id); if(t) { t.done = !t.done; this.saveState(); renderList(); }};
+        
+        this.delTask = (id) => {
+            this.confirmModal('Tem certeza que deseja excluir esta tarefa?', () => {
+                this.state.tasks = this.state.tasks.filter(x=>x.id!==id);
+                this.saveState(); renderList();
+            });
+        };
+
+        this.moveTaskToKanban = (id) => {
+            const t = this.state.tasks.find(x=>x.id===id);
+            if(!t) return;
+            // Usa o board ativo, ou o primeiro disponível
+            const targetBoardId = this.currentBoardId || this.state.boards[0]?.id;
+            if(!targetBoardId) return this.toast("Crie um board Kanban primeiro!", "error");
+
+            this.confirmModal(`Mover "${t.title}" para o Kanban? (A tarefa será removida desta lista)`, () => {
+                this.state.cards.push({
+                    id: this.uid(),
+                    boardId: targetBoardId,
+                    col: 'todo',
+                    title: t.title,
+                    desc: `Tag da Tarefa: ${t.tag || 'Nenhuma'}`
+                });
+                this.state.tasks = this.state.tasks.filter(x=>x.id!==id);
+                this.saveState();
+                this.toast(`Tarefa movida para o Kanban (${this.state.boards.find(b=>b.id===targetBoardId)?.title})!`);
+                renderList();
+            });
+        };
+        renderList();
+    },
+
+    // 3. KANBAN (Multi-Board)
+    render_kanban(root) {
+        if(!this.currentBoardId && this.state.boards.length > 0) this.currentBoardId = this.state.boards[0].id;
+        
+        root.innerHTML = `
+            <div class="grid" style="height:100%; grid-template-rows: auto 1fr; gap:16px; display:flex; flex-direction:column">
+                <div class="col-12 card" style="display:flex; justify-content:space-between; align-items:center; padding:12px 20px">
+                    <div style="display:flex; gap:12px; align-items:center">
+                        <i class="ph ph-projector-screen" style="font-size:20px; color:var(--primary)"></i>
+                        <select id="boardSelect" style="width:200px; background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:6px 12px; border-radius:8px; color:white">
+                            ${this.state.boards.map(b => `<option value="${b.id}" ${b.id===this.currentBoardId?'selected':''}>${b.title}</option>`).join('')}
+                        </select>
+                        <button class="btn ghost" onclick="app.createBoard()">+ Novo Board</button>
+                    </div>
+                    <div>
+                        <button class="btn danger ghost" style="padding:6px 10px" onclick="app.deleteBoard()"><i class="ph ph-trash"></i> Excluir Board</button>
+                    </div>
+                </div>
+                <div id="kanbanArea" class="kanban-board" style="flex:1"></div>
+            </div>
+        `;
+
+        document.getElementById('boardSelect').onchange = (e) => {
+            this.currentBoardId = e.target.value;
+            this.saveState();
+            this.render_kanban(root);
+        };
+
+        const renderBoard = () => {
+            const cols = [
+                {id:'todo', label:'A Fazer', color:'#6366f1'}, 
+                {id:'doing', label:'Em Progresso', color:'#fbbf24'}, 
+                {id:'done', label:'Concluído', color:'#34d399'}
+            ];
+            
+            const area = document.getElementById('kanbanArea');
+            if(!this.currentBoardId) { area.innerHTML = '<div class="muted" style="width:100%; text-align:center; padding:50px">Crie um board para começar</div>'; return; }
+
+            area.innerHTML = cols.map(c => `
+                <div class="kanban-col" ondragover="event.preventDefault()" ondrop="app.dropCard(event, '${c.id}')">
+                    <div style="margin-bottom:12px; display:flex; justify-content:space-between; color:${c.color}; font-weight:700">
+                        <span>${c.label}</span>
+                        <span class="muted">${this.state.cards.filter(x => x.col === c.id && x.boardId === this.currentBoardId).length}</span>
+                    </div>
+                    <div style="flex:1; overflow-y:auto; padding-right:4px;">
+                        ${this.state.cards.filter(x => x.col === c.id && x.boardId === this.currentBoardId).map(card => `
+                            <div class="kanban-card" draggable="true" ondragstart="app.dragCard(event, '${card.id}')" onclick="app.openCardDetails('${card.id}')">
+                                <div style="font-weight:600; margin-bottom:4px; font-size:14px">${card.title}</div>
+                                ${card.desc ? `<div class="muted" style="font-size:12px; line-height:1.4">${card.desc.substring(0,60)}${card.desc.length>60?'...':''}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button class="btn ghost" style="width:100%; margin-top:8px; border-style:dashed" onclick="app.addCardPrompt('${c.id}')">+ Adicionar</button>
+                </div>
+            `).join('');
+        };
+        
+        this.createBoard = () => {
+            this.promptModal('Novo Projeto', 'Nome do Board', (name) => {
+                const id = this.uid();
+                this.state.boards.push({ id, title: name });
+                this.currentBoardId = id;
+                this.saveState(); this.render_kanban(root);
+            });
+        };
+
+        this.deleteBoard = () => {
+            if(this.state.boards.length <= 1) return this.toast("Você precisa de pelo menos um board.", "error");
+            
+            const currentBoardTitle = this.state.boards.find(b => b.id === this.currentBoardId)?.title || 'Este Board';
+
+            this.confirmModal(`Excluir o board "${currentBoardTitle}" e **todos** os seus cards?`, () => {
+                this.state.cards = this.state.cards.filter(c => c.boardId !== this.currentBoardId);
+                this.state.boards = this.state.boards.filter(b => b.id !== this.currentBoardId);
+                
+                // Mude para o primeiro board restante
+                this.currentBoardId = this.state.boards[0].id;
+                this.saveState(); 
+                this.toast(`Board "${currentBoardTitle}" excluído.`, 'info');
+                this.render_kanban(root);
+            });
+        };
+
+        this.dragCard = (ev, id) => ev.dataTransfer.setData('cardId', id);
+        this.dropCard = (ev, colId) => {
+            const id = ev.dataTransfer.getData('cardId');
+            const card = this.state.cards.find(x=>x.id===id);
+            if(card && card.col !== colId) { card.col = colId; this.saveState(); renderBoard(); }
+        };
+        
+        this.addCardPrompt = (col) => {
+            this.promptModal('Novo Card', 'Título da tarefa', (val) => {
+                this.state.cards.push({ id: this.uid(), boardId: this.currentBoardId, col, title: val, desc: '' });
+                this.saveState(); renderBoard();
+            });
+        };
+
+        this.openCardDetails = (id) => {
+            const card = this.state.cards.find(c => c.id === id);
+            if(!card) return;
+            this.openModal(`
+                <h3>Editar Card: ${card.title}</h3>
+                <label class="muted">Título</label>
+                <input id="cTitle" value="${card.title}" style="margin-bottom:16px">
+                <label class="muted">Descrição</label>
+                <textarea id="cDesc" style="height:100px; margin-bottom:16px">${card.desc||''}</textarea>
+                <label class="muted">Mover para</label>
+                <select id="cCol" style="margin-bottom:24px">
+                    <option value="todo" ${card.col==='todo'?'selected':''}>A Fazer</option>
+                    <option value="doing" ${card.col==='doing'?'selected':''}>Em Progresso</option>
+                    <option value="done" ${card.col==='done'?'selected':''}>Concluído</option>
+                </select>
+                <div class="modal-actions">
+                    <button class="btn danger" id="delCardBtn">Excluir Card</button>
+                    <button class="btn" id="saveCardBtn">Salvar Alterações</button>
+                </div>
+            `);
+            
+            document.getElementById('saveCardBtn').onclick = () => {
+                card.title = document.getElementById('cTitle').value;
+                card.desc = document.getElementById('cDesc').value;
+                card.col = document.getElementById('cCol').value;
+                this.saveState(); this.closeModal(); renderBoard();
+            };
+            document.getElementById('delCardBtn').onclick = () => {
+                this.confirmModal('Tem certeza que deseja excluir este card?', () => {
+                    this.state.cards = this.state.cards.filter(x=>x.id !== id);
+                    this.saveState(); this.closeModal(); renderBoard();
+                });
+            };
+        };
+
+        renderBoard();
+    },
+
+    // 4. CALENDAR (Navegação + Edição + Categorias)
+    render_calendar(root) {
+        const draw = () => {
+            const year = this.calendarCursor.getFullYear();
+            const month = this.calendarCursor.getMonth();
+            const monthName = this.calendarCursor.toLocaleString('pt-BR', {month:'long', year:'numeric'});
+            
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDay = new Date(year, month, 1).getDay();
+            
+            let html = `
+            <div class="grid">
+                <div class="col-12 card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+                        <div style="display:flex; gap:10px; align-items:center">
+                            <button class="btn ghost" onclick="app.calNav(-1)"><i class="ph ph-caret-left"></i></button>
+                            <h3 style="margin:0; text-transform:capitalize; width:180px; text-align:center">${monthName}</h3>
+                            <button class="btn ghost" onclick="app.calNav(1)"><i class="ph ph-caret-right"></i></button>
+                        </div>
+                        <button class="btn" onclick="app.addEventPrompt()">+ Novo Evento</button>
+                    </div>
+                    <div class="calendar-grid">
+                        ${['DOM','SEG','TER','QUA','QUI','SEX','SAB'].map(d=>`<div class="cal-head">${d}</div>`).join('')}
+                        ${Array(firstDay).fill('<div></div>').join('')}
+                        ${Array.from({length:daysInMonth}, (_,i)=>i+1).map(d => {
+                            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                            const evs = this.state.events.filter(e => e.date === dateStr);
+                            const isToday = new Date().toISOString().slice(0,10) === dateStr;
+                            return `
+                                <div class="cal-day" style="${isToday ? 'background:rgba(99,102,241,0.1); border:1px solid var(--primary)' : ''}" onclick="app.addEventPrompt('${dateStr}')">
+                                    <span style="font-weight:700; opacity:${isToday?1:0.5}">${d}</span>
+                                    ${evs.map(e => {
+                                        const config = EV_CONFIG[e.type] || EV_CONFIG['other'];
+                                        return `<div class="event-dot ev-type-${e.type}" onclick="event.stopPropagation(); app.editEvent('${e.id}')">
+                                            <i class="ph ${config.icon}" style="font-size:12px;"></i> ${e.title}
+                                        </div>`;
+                                    }).join('')}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>`;
+            root.innerHTML = html;
+        };
+
+        this.calNav = (dir) => {
+            this.calendarCursor.setMonth(this.calendarCursor.getMonth() + dir);
+            draw();
+        };
+
+        this.addEventPrompt = (preDate = '') => {
+            const defDate = preDate || new Date().toISOString().slice(0,10);
+            this.openModal(`
+                <h3>Novo Evento</h3>
+                <input id="evTitle" placeholder="Título do evento" style="margin-bottom:12px">
+                <div style="display:flex; gap:12px; margin-bottom:12px">
+                    <input id="evDate" type="date" value="${defDate}">
+                    <select id="evType">
+                        ${Object.keys(EV_CONFIG).map(k => `<option value="${k}">${EV_CONFIG[k].label}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn ghost" onclick="app.closeModal()">Cancelar</button>
+                    <button class="btn" id="saveEvBtn">Salvar</button>
+                </div>
+            `);
+            document.getElementById('saveEvBtn').onclick = () => {
+                const title = document.getElementById('evTitle').value;
+                const date = document.getElementById('evDate').value;
+                const type = document.getElementById('evType').value;
+                if(title && date) {
+                    this.state.events.push({ id:this.uid(), title, date, type });
+                    this.saveState(); this.closeModal(); draw();
+                }
+            };
+        };
+
+        this.editEvent = (id) => {
+            const ev = this.state.events.find(x => x.id === id);
+            if(!ev) return;
+            this.openModal(`
+                <h3>Editar Evento</h3>
+                <input id="evTitleEd" value="${ev.title}" style="margin-bottom:12px">
+                <div style="display:flex; gap:12px; margin-bottom:12px">
+                    <input id="evDateEd" type="date" value="${ev.date}">
+                    <select id="evTypeEd">
+                        ${Object.keys(EV_CONFIG).map(k => `<option value="${k}" ${ev.type===k?'selected':''}>${EV_CONFIG[k].label}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn danger" id="delEvBtn">Excluir</button>
+                    <button class="btn" id="saveEvEdBtn">Salvar</button>
+                </div>
+            `);
+            document.getElementById('saveEvEdBtn').onclick = () => {
+                ev.title = document.getElementById('evTitleEd').value;
+                ev.date = document.getElementById('evDateEd').value;
+                ev.type = document.getElementById('evTypeEd').value;
+                this.saveState(); this.closeModal(); draw();
+            };
+            document.getElementById('delEvBtn').onclick = () => {
+                this.confirmModal('Excluir este evento?', () => {
+                    this.state.events = this.state.events.filter(x=>x.id !== id);
+                    this.saveState(); this.closeModal(); draw();
+                });
+            };
+        };
+
+        draw();
+    },
+
+    // 5. NOTES (Restaurado)
+    render_notes(root) {
+        root.innerHTML = `
+            <div class="grid" style="height:calc(100vh - 140px)">
+                <div class="col-4">
+                    <div class="card" style="height:100%; display:flex; flex-direction:column">
+                        <button class="btn" style="width:100%; margin-bottom:12px" onclick="app.newNote()">+ Nova Nota</button>
+                        <div id="notesList" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px"></div>
+                    </div>
+                </div>
+                <div class="col-8">
+                    <div class="card" style="height:100%; display:flex; flex-direction:column">
+                        <div style="display:flex; gap:10px; margin-bottom:12px">
+                            <input id="noteTitle" placeholder="Título da Nota" style="background:transparent; border:none; border-bottom:1px solid var(--border); font-size:18px; font-weight:700;">
+                            <button class="btn danger ghost" id="delNoteBtn" title="Excluir Nota" style="display:none"><i class="ph ph-trash"></i></button>
+                        </div>
+                        <textarea id="noteBody" style="flex:1; background:transparent; border:none; resize:none; font-family:'Inter'; line-height:1.6; font-size:15px" placeholder="Escreva suas ideias..."></textarea>
+                        <div style="text-align:right; margin-top:10px"><button class="btn" onclick="app.saveCurrentNote()">Salvar Nota</button></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        let currentId = null;
+
+        const renderList = () => {
+            const list = document.getElementById('notesList');
+            if(this.state.notes.length === 0) { list.innerHTML = '<div class="muted text-center">Nenhuma nota</div>'; return; }
+            list.innerHTML = this.state.notes.map(n => `
+                <div onclick="app.loadNote('${n.id}')" style="padding:12px; border-radius:8px; background:rgba(255,255,255,0.03); cursor:pointer; border:1px solid ${currentId===n.id?'var(--primary)':'transparent'}; transition:all 0.2s">
+                    <div style="font-weight:600; font-size:14px">${n.title || 'Sem título'}</div>
+                    <div class="muted" style="font-size:11px; margin-top:4px">${new Date(n.updated).toLocaleDateString()}</div>
+                </div>
+            `).join('');
+        };
+
+        this.newNote = () => {
+            currentId = null;
+            document.getElementById('noteTitle').value = '';
+            document.getElementById('noteBody').value = '';
+            document.getElementById('delNoteBtn').style.display = 'none';
+            renderList();
+        };
+
+        this.loadNote = (id) => {
+            currentId = id;
+            const n = this.state.notes.find(x=>x.id===id);
+            document.getElementById('noteTitle').value = n.title;
+            document.getElementById('noteBody').value = n.body;
+            document.getElementById('delNoteBtn').style.display = 'block';
+            renderList();
+        };
+
+        this.saveCurrentNote = () => {
+            const title = document.getElementById('noteTitle').value;
+            const body = document.getElementById('noteBody').value;
+            if(!title && !body) return;
+            
+            if(!currentId) {
+                currentId = this.uid();
+                this.state.notes.unshift({ id:currentId, title, body, updated: new Date() });
+            } else {
+                const n = this.state.notes.find(x=>x.id===currentId);
+                n.title = title; n.body = body; n.updated = new Date();
+                this.state.notes = this.state.notes.filter(x=>x.id!==currentId);
+                this.state.notes.unshift(n);
+            }
+            this.saveState();
+            renderList();
+            this.loadNote(currentId);
+            this.toast('Nota salva!');
+        };
+
+        document.getElementById('delNoteBtn').onclick = () => {
+            if(!currentId) return;
+            this.confirmModal('Excluir esta nota permanentemente?', () => {
+                this.state.notes = this.state.notes.filter(x=>x.id !== currentId);
+                this.saveState();
+                this.newNote();
+                this.toast('Nota excluída.');
+            });
+        };
+
+        this.newNote();
+    },
+
+    // 6. HABITS (Com Tags)
+    render_habits(root) {
+        root.innerHTML = `
+            <div class="grid">
+                <div class="col-4 card">
+                    <h3>Novo Hábito</h3>
+                    <input id="hName" placeholder="Ex: Testar o Front" style="margin-bottom:8px">
+                    <input id="hTags" placeholder="Tags (ex: Desenvolvimento, Gestão - separadas por vírgula)" style="margin-bottom:12px">
+                    <button class="btn" style="width:100%" onclick="app.addHabit()">Adicionar Hábito</button>
+                </div>
+                <div class="col-8 card" id="hList"></div>
+            </div>
+        `;
+        this.addHabit = () => {
+            const name = document.getElementById('hName').value;
+            const tagsStr = document.getElementById('hTags').value;
+            // Transforma string de tags separadas por vírgula em array
+            const tags = tagsStr.split(',').map(t=>t.trim().toLowerCase()).filter(Boolean);
+
+            if(name) { 
+                this.state.habits.push({ id:this.uid(), name, tags, streaks:{} }); 
+                this.saveState(); 
+                this.render_habits(root);
+                this.toast('Hábito adicionado!');
+            }
+        };
+        const today = new Date().toISOString().slice(0,10);
+        const renderList = () => {
+            const el = document.getElementById('hList');
+            el.innerHTML = this.state.habits.length ? this.state.habits.map(h => {
+                const done = h.streaks[today];
+                return `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:rgba(255,255,255,0.03); border-radius:8px; margin-bottom:8px">
+                    <div>
+                        <div style="font-weight:600">${h.name}</div>
+                        <div style="margin-top:4px">${(h.tags||[]).map(t=>`<span class="tag-pill">#${t}</span>`).join('')}</div>
+                    </div>
+                    <div style="display:flex; gap:10px; align-items:center">
+                        <span class="muted" style="font-size:12px">🔥 ${Object.keys(h.streaks).length}</span>
+                        <button class="btn ${done?'':'ghost'}" onclick="app.toggleHabit('${h.id}')">${done?'Feito':'Marcar'}</button>
+                        <button class="btn danger ghost" style="padding:4px 8px" onclick="app.delHabit('${h.id}')"><i class="ph ph-trash"></i></button>
+                    </div>
+                </div>`;
+            }).join('') : '<div class="muted">Nenhum hábito.</div>';
+        };
+        this.toggleHabit = (id) => { const h = this.state.habits.find(x=>x.id===id); if(h.streaks[today]) delete h.streaks[today]; else h.streaks[today]=true; this.saveState(); renderList(); };
+        this.delHabit = (id) => { this.confirmModal('Apagar hábito?', ()=>{ this.state.habits = this.state.habits.filter(x=>x.id!==id); this.saveState(); renderList(); }); };
+        renderList();
+    },
+
+    // 7. ROADMAP (Cores Fixas)
+    render_roadmap(root) {
+        root.innerHTML = `<div class="grid"><div class="col-12 card"><div style="display:flex;justify-content:space-between;margin-bottom:20px"><h3>Roadmap</h3><button class="btn ghost" onclick="app.addRoadmapItem()">+ Item</button></div><div id="roadList" style="position:relative;padding-left:20px;border-left:2px solid var(--border)"></div></div></div>`;
+        const statuses = { 
+            'planned': { color: '#94a3b8', label: 'Planejado' },   // Cinza (Claro)
+            'active': { color: '#3b82f6', label: 'Em Andamento' }, // Azul (Primário)
+            'completed': { color: '#10b981', label: 'Concluído' }  // Verde (Distinto)
+        };
+        this.addRoadmapItem = () => {
+            this.promptModal('Roadmap', 'O que será feito?', (val)=>{
+                this.state.roadmap.push({ id:this.uid(), title: val, date: new Date().toISOString().slice(0,10), status: 'planned' });
+                this.saveState(); this.render_roadmap(root);
+            });
+        };
+        document.getElementById('roadList').innerHTML = this.state.roadmap.map(r => `
+            <div style="margin-bottom:24px; position:relative;">
+                <div style="position:absolute; left:-29px; top:0; width:16px; height:16px; background:${statuses[r.status].color}; border-radius:50%; border:3px solid var(--bg-dark); box-shadow:0 0 10px ${statuses[r.status].color}66"></div>
+                <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center">
+                    <div>
+                        <div style="font-weight:600">${r.title}</div>
+                        <div style="color:${statuses[r.status].color}; font-size:11px; margin-top:4px; font-weight:700; text-transform:uppercase">${statuses[r.status].label}</div>
+                    </div>
+                    <div style="display:flex; gap:8px">
+                        <button class="btn ghost" style="font-size:11px" onclick="app.toggleRoadStatus('${r.id}')">Alterar Status</button>
+                        <button class="btn danger ghost" style="padding:4px 8px" onclick="app.delRoad('${r.id}')"><i class="ph ph-trash"></i></button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        this.toggleRoadStatus = (id) => { const item = this.state.roadmap.find(x=>x.id===id); const cycle = ['planned', 'active', 'completed']; item.status = cycle[(cycle.indexOf(item.status) + 1) % cycle.length]; this.saveState(); this.render_roadmap(root); };
+        this.delRoad = (id) => { this.confirmModal('Remover item do roadmap?', ()=>{ this.state.roadmap = this.state.roadmap.filter(x=>x.id!==id); this.saveState(); this.render_roadmap(root); }); };
+    },
+    
+    // 8. BOOKMARKS (Restaurado)
+    render_bookmarks(root) {
+        root.innerHTML = `
+            <div class="grid">
+                <div class="col-12 card">
+                    <div style="display:flex; gap:10px; margin-bottom:20px">
+                        <input id="bmUrl" placeholder="URL (https://...)" style="flex:1">
+                        <input id="bmTitle" placeholder="Título" style="flex:1">
+                        <button class="btn" onclick="app.addBookmark()">Salvar</button>
+                    </div>
+                    <div class="grid" id="bmGrid"></div>
+                </div>
+            </div>
+        `;
+        const render = () => {
+            document.getElementById('bmGrid').innerHTML = this.state.bookmarks.map(b => `
+                <div class="col-4" style="background:rgba(255,255,255,0.05); padding:16px; border-radius:8px; display:flex; align-items:center; gap:10px">
+                    <img src="https://www.google.com/s2/favicons?domain=${b.url}&sz=32" width="24" height="24" style="border-radius:4px">
+                    <div style="flex:1; overflow:hidden">
+                        <a href="${b.url}" target="_blank" style="color:white; text-decoration:none; display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; font-weight:600">${b.title}</a>
+                        <small class="muted">${b.url.substring(0,30)}...</small>
+                    </div>
+                    <button class="btn ghost danger" onclick="app.delBookmark('${b.id}')"><i class="ph ph-trash"></i></button>
+                </div>
+            `).join('');
+        };
+        this.addBookmark = () => {
+            let url = document.getElementById('bmUrl').value;
+            const title = document.getElementById('bmTitle').value;
+            if(!url) return;
+            if(!url.startsWith('http')) url = 'https://' + url;
+            this.state.bookmarks.push({id:this.uid(), url, title: title || url });
+            this.saveState(); render();
+        };
+        this.delBookmark = (id) => { this.confirmModal('Remover favorito?', ()=>{ this.state.bookmarks = this.state.bookmarks.filter(x=>x.id!==id); this.saveState(); render(); }); };
+        render();
+    },
+
+    // 9. SNIPPETS (Restaurado)
+    render_snippets(root) {
+        root.innerHTML = `
+            <div class="grid">
+                <div class="col-4 card">
+                    <h3>Novo Snippet</h3>
+                    <input id="snipTitle" placeholder="Nome (ex: Fetch API)" style="margin-bottom:8px">
+                    <select id="snipLang" style="margin-bottom:8px"><option>JavaScript</option><option>CSS</option><option>HTML</option><option>SQL</option><option>Python</option></select>
+                    <textarea id="snipCode" style="height:150px; margin-bottom:12px; font-family:monospace" placeholder="Código..."></textarea>
+                    <button class="btn" onclick="app.addSnippet()">Salvar</button>
+                </div>
+                <div class="col-8" id="snipList" style="display:flex; flex-direction:column; gap:16px"></div>
+            </div>
+        `;
+        const render = () => {
+            document.getElementById('snipList').innerHTML = this.state.snippets.map(s => `
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px">
+                        <strong>${s.title} <span class="muted">(${s.lang})</span></strong>
+                        <button class="btn ghost danger" style="padding:2px 8px" onclick="app.delSnippet('${s.id}')">X</button>
+                    </div>
+                    <pre style="background:#0f172a; padding:12px; border-radius:6px; overflow-x:auto; font-family:monospace; color:#cbd5e1">${s.code.replace(/</g,'&lt;')}</pre>
+                    <button class="btn ghost" style="margin-top:8px; font-size:11px" onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(s.code)}')); app.toast('Copiado!')">Copiar</button>
+                </div>
+            `).join('');
+        };
+        this.addSnippet = () => {
+            const title = document.getElementById('snipTitle').value;
+            const code = document.getElementById('snipCode').value;
+            const lang = document.getElementById('snipLang').value;
+            if(title && code) { this.state.snippets.unshift({ id:this.uid(), title, code, lang }); this.saveState(); render(); }
+        };
+        this.delSnippet = (id) => { this.confirmModal('Apagar snippet?', ()=>{ this.state.snippets = this.state.snippets.filter(x=>x.id!==id); this.saveState(); render(); }); };
+        render();
+    },
+
+    // 10. POMODORO (Restaurado)
+    render_pomodoro(root) {
+        root.innerHTML = `
+            <div class="grid" style="text-align:center; height:100%; align-items:center">
+                <div class="col-12 card" style="display:flex; flex-direction:column; align-items:center; padding:60px">
+                    <div style="font-size:14px; font-weight:600; color:var(--primary); margin-bottom:10px" id="pomoMode">Pronto para Focar</div>
+                    <div style="width: 220px; height: 220px; border-radius: 50%; border: 6px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 56px; font-weight: 700; background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%); box-shadow: 0 0 40px rgba(99,102,241,0.1); letter-spacing: -2px;" id="pomoDisplay">25:00</div>
+                    <div style="margin-top:40px; display:flex; gap:16px">
+                        <button class="btn" onclick="app.startTimer(25)">Focus (25m)</button>
+                        <button class="btn ghost" onclick="app.startTimer(5, true)">Break (5m)</button>
+                        <button class="btn danger" onclick="app.stopTimer()">Parar</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        this.stopTimer = () => { 
+            clearInterval(this.timerInterval); 
+            document.getElementById('pomoDisplay').innerText = "25:00"; 
+            document.getElementById('pomoMode').innerText = "Pronto para Focar";
+            document.title = "FLUXO"; 
+        };
+        this.startTimer = (mins, isBreak = false) => {
+            this.stopTimer();
+            let seconds = mins * 60;
+            const display = document.getElementById('pomoDisplay');
+            const mode = document.getElementById('pomoMode');
+            mode.innerText = isBreak ? "Pausa Curta" : "Foco Profundo";
+
+            this.timerInterval = setInterval(() => {
+                seconds--;
+                const m = Math.floor(seconds / 60);
+                const s = seconds % 60;
+                const txt = `${m}:${s < 10 ? '0'+s : s}`;
+                display.innerText = txt;
+                document.title = `(${txt}) ${mode.innerText}`;
+
+                if (seconds <= 0) { 
+                    this.stopTimer(); 
+                    this.toast("Tempo esgotado! " + (isBreak ? "Hora de Focar!" : "Hora da Pausa!"), "info"); 
+                    new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play(); 
+                }
+            }, 1000);
+        };
+    },
+
+    // 11. VAULT (Restaurado)
+    render_vault(root) {
+        root.innerHTML = `<div class="grid"><div class="col-12 card"><div style="border:2px dashed var(--border); padding:32px; text-align:center; border-radius:12px; cursor:pointer" onclick="document.getElementById('pdfUp').click()"><i class="ph ph-file-pdf" style="font-size:48px; color:var(--text-muted)"></i><p>Adicionar PDF (Max 500KB)</p><input type="file" id="pdfUp" accept="application/pdf" hidden onchange="app.uploadPdf(this)"></div></div><div class="col-12 grid" id="pdfGrid"></div></div>`;
+        this.uploadPdf = (input) => {
+            const f = input.files[0]; if(!f) return;
+            if(f.size > 500000) return this.toast("Arquivo muito grande!", "error");
+            const reader = new FileReader();
+            reader.onload = (e) => { this.state.docs.push({ id:this.uid(), name:f.name, data: e.target.result, size: (f.size/1024).toFixed(1) }); this.saveState(); this.render_vault(root); };
+            reader.readAsDataURL(f);
+        };
+        document.getElementById('pdfGrid').innerHTML = this.state.docs.map(d => `
+            <div class="col-4 card" style="display:flex; flex-direction:column; gap:10px">
+                <div style="display:flex; align-items:center; gap:10px"><i class="ph ph-file-pdf" style="color:#ef4444; font-size:24px"></i><div style="flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis"><strong>${d.name}</strong><div class="muted">${d.size} KB</div></div></div>
+                <div style="display:flex; gap:8px; margin-top:auto"><button class="btn" style="flex:1" onclick="window.open().document.write('<iframe src=\\'${d.data}\\' style=\\'width:100%;height:100%;border:0\\'></iframe>')">Abrir</button><button class="btn danger" onclick="app.delPdf('${d.id}')"><i class="ph ph-trash"></i></button></div>
+            </div>
+        `).join('');
+        this.delPdf = (id) => { this.confirmModal('Apagar PDF?', ()=>{ this.state.docs = this.state.docs.filter(x=>x.id!==id); this.saveState(); this.render_vault(root); }); };
+    }
+};
+
+app.init();
+</script>
+</body>
+</html>
