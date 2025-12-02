@@ -7,49 +7,83 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
-        /* --- DESIGN SYSTEM --- */
+        /* --- DESIGN SYSTEM & THEMES --- */
         :root {
-            --primary: #6366f1; /* Indigo */
-            --accent: #a855f7;  /* Roxo */
-            --success: #10b981; /* Verde */
-            --warning: #f59e0b; /* Laranja */
-            --danger: #ef4444;  /* Vermelho */
-            --bg-dark: #0f172a;
+            /* DARK MODE (DEFAULT) */
+            --primary: #6366f1;
+            --accent: #a855f7;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            
+            --bg-body: #0f172a;
+            --bg-sidebar: rgba(15, 23, 42, 0.95);
+            --bg-header: rgba(15, 23, 42, 0.4);
             --bg-card: rgba(30, 41, 59, 0.75);
+            --bg-input: rgba(0,0,0,0.3);
+            --bg-hover: rgba(255,255,255,0.05);
+            
             --border: rgba(255, 255, 255, 0.08);
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
+            --shadow: 0 4px 6px rgba(0,0,0,0.3);
+            
             --radius: 12px;
             --glass: blur(14px) saturate(140%);
+            --transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
 
-        * { box-sizing: border-box; outline: none; }
+        /* LIGHT MODE OVERRIDES */
+        [data-theme="light"] {
+            --bg-body: #f1f5f9;
+            --bg-sidebar: rgba(255, 255, 255, 0.95);
+            --bg-header: rgba(255, 255, 255, 0.6);
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --bg-hover: rgba(0,0,0,0.05);
+            
+            --border: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+
+        * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
         
         body {
             margin: 0;
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg-dark);
-            background-image: 
-                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.1), transparent 20%),
-                radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.1), transparent 20%);
+            background-color: var(--bg-body);
             color: var(--text-main);
             height: 100vh;
             display: flex;
             overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Background Gradient (Subtle) */
+        body::before {
+            content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08), transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.08), transparent 20%);
+            pointer-events: none; z-index: -1;
         }
 
         /* --- LAYOUT --- */
-        #app { display: flex; width: 100%; height: 100%; }
+        #app { display: flex; width: 100%; height: 100%; position: relative; }
         
+        /* SIDEBAR */
         aside {
             width: 260px;
             padding: 24px;
             display: flex;
             flex-direction: column;
             border-right: 1px solid var(--border);
-            background: rgba(15, 23, 42, 0.85);
+            background: var(--bg-sidebar);
             backdrop-filter: blur(10px);
-            z-index: 10;
+            z-index: 100;
+            transition: var(--transition);
         }
 
         .brand {
@@ -60,28 +94,19 @@
             -webkit-text-fill-color: transparent;
             margin-bottom: 30px;
             display: flex;
-            align-items: center;
-            gap: 10px;
+            align-items: center; justify-content: space-between;
         }
 
         nav button {
-            background: transparent;
-            border: none;
+            background: transparent; border: none;
             color: var(--text-muted);
-            width: 100%;
-            padding: 12px 16px;
-            text-align: left;
-            cursor: pointer;
-            border-radius: 10px;
-            font-weight: 500;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            transition: all 0.2s;
-            margin-bottom: 4px;
+            width: 100%; padding: 12px 16px;
+            text-align: left; cursor: pointer;
+            border-radius: 10px; font-weight: 500; font-size: 14px;
+            display: flex; align-items: center; gap: 12px;
+            transition: all 0.2s; margin-bottom: 4px;
         }
-        nav button:hover { color: var(--text-main); background: rgba(255,255,255,0.05); }
+        nav button:hover { color: var(--text-main); background: var(--bg-hover); }
         nav button.active {
             background: rgba(99, 102, 241, 0.15);
             color: #818cf8;
@@ -89,16 +114,17 @@
         }
         nav button i { font-size: 18px; }
 
-        main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        /* MAIN AREA */
+        main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; width: 100%; }
 
         header {
             padding: 20px 32px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            display: flex; justify-content: space-between; align-items: center;
             border-bottom: 1px solid var(--border);
-            background: rgba(15, 23, 42, 0.4);
+            background: var(--bg-header);
         }
+
+        .menu-toggle { display: none; background: none; border: none; color: var(--text-main); font-size: 24px; cursor: pointer; }
 
         .view-content { flex: 1; padding: 32px; overflow-y: auto; scroll-behavior: smooth; }
 
@@ -115,17 +141,19 @@
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow);
+            color: var(--text-main);
+            transition: background 0.3s, border-color 0.3s;
         }
         
-        h3 { margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: white; display: flex; justify-content: space-between; align-items: center; }
+        h3 { margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; }
         .muted { color: var(--text-muted); font-size: 13px; }
 
         input, select, textarea {
             width: 100%;
-            background: rgba(0,0,0,0.3);
+            background: var(--bg-input);
             border: 1px solid var(--border);
-            color: white;
+            color: var(--text-main);
             padding: 10px 14px;
             border-radius: 8px;
             font-family: inherit;
@@ -135,72 +163,277 @@
         input:focus, textarea:focus, select:focus { border-color: var(--primary); }
         
         .btn {
-            padding: 9px 18px;
-            border-radius: 8px;
-            border: none;
+            padding: 9px 18px; border-radius: 8px; border: none;
             background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 13px;
-            display: inline-flex; align-items: center; gap: 6px;
-            transition: filter 0.2s;
+            color: white; font-weight: 600; cursor: pointer; font-size: 13px;
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            transition: filter 0.2s; white-space: nowrap;
         }
         .btn:hover { filter: brightness(1.1); }
-        .btn.ghost { background: rgba(255,255,255,0.05); border: 1px solid var(--border); }
-        .btn.ghost:hover { background: rgba(255,255,255,0.1); }
+        .btn.ghost { background: var(--bg-hover); border: 1px solid var(--border); color: var(--text-main); }
+        .btn.ghost:hover { background: rgba(150,150,150,0.1); }
         .btn.danger { background: rgba(220, 38, 38, 0.15); color: #fca5a5; border: 1px solid rgba(220, 38, 38, 0.4); }
+        [data-theme="light"] .btn.danger { color: #ef4444; border-color: #ef4444; }
         .btn.danger:hover { background: rgba(220, 38, 38, 0.3); }
 
-        .tag-pill {
-            display: inline-block; padding: 2px 8px; border-radius: 12px; 
-            font-size: 10px; background: rgba(255,255,255,0.1); margin-right: 4px; color: #cbd5e1;
+        .tag-pill { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; background: var(--bg-hover); margin-right: 4px; color: var(--text-muted); border: 1px solid var(--border); }
+
+        /* --- MOBILE & RESPONSIVE --- */
+        .overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 90;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .overlay.show { opacity: 1; pointer-events: auto; }
+
+        @media (max-width: 968px) {
+            .col-4 { grid-column: span 6; }
+            .col-8 { grid-column: span 12; }
         }
 
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+/* PATCH — Ajustes finais para Kanban + Tarefas no Mobile (<= 768px) */
+
+@media (max-width: 768px) {
+
+    /* ===== KANBAN 100% VERTICAL ===== */
+    .kanban-board {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 22px !important;
+        overflow-x: hidden !important;
+        padding-bottom: 40px !important;
+    }
+
+    .kanban-col {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        overflow-y: visible !important;
+        margin-right: 0 !important;
+    }
+
+    .kanban-card {
+        min-height: 70px !important;
+    }
+
+    /* Header e filtros do Kanban empilhados */
+    .kanban-header-container,
+    .kanban-controls {
+        flex-direction: column !important;
+        width: 100% !important;
+        gap: 12px !important;
+    }
+
+    .kanban-controls > div,
+    .kanban-header-actions {
+        width: 100% !important;
+        display: flex !important;
+        gap: 10px !important;
+    }
+
+    /* ===== TAREFAS 100% RESPONSIVO ===== */
+    .task-input-wrapper {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        gap: 12px !important;
+    }
+
+    .task-row-1,
+    .task-row-2 {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+        width: 100% !important;
+    }
+
+    .task-row-2 input,
+    .task-row-2 select,
+    .task-row-2 button {
+        width: 100% !important;
+        height: 42px !important;
+    }
+
+    /* Botões laterais dentro das tasks */
+    .card > div > div:last-child {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 8px !important;
+    }
+
+    /* Evita overflow dos cards */
+    #taskList .card {
+        width: 100% !important;
+        overflow: hidden !important;
+    }
+
+    /* Sidebar correta */
+    aside.open {
+        max-width: 260px !important;
+    }
+}
+
+
+        /* --- CORREÇÕES MOBILE (TAREFAS E KANBAN) --- */
+/* --- MOBILE & RESPONSIVE FIXES (Kanban Vertical, Chatbot, Tasks Modal) --- */
+@media (max-width: 768px) {
+    /* Ajuste Geral */
+    .view-content { padding: 16px !important; padding-bottom: 100px !important; }
+    
+    /* Layout Geral */
+    aside { 
+        position: fixed; 
+        left: -280px; 
+        top: 0; 
+        height: 100%; 
+        box-shadow: 10px 0 30px rgba(0,0,0,0.3); 
+        z-index: 1000; /* Garante que o menu esteja acima de tudo */
+    }
+    aside.open { left: 0; }
+    .menu-toggle { display: block; }
+    header { padding: 15px; }
+    
+    /* Grid vira coluna única */
+    .grid { display: flex; flex-direction: column; gap: 16px; }
+    .col-4, .col-6, .col-8, .col-12 { width: 100%; }
+
+    /* 1. KANBAN VERTICAL (Empilhado) */
+    .kanban-board {
+        flex-direction: column !important; /* Um embaixo do outro */
+        overflow-x: hidden !important; /* Remove rolagem lateral */
+        height: auto !important; /* Altura automática */
+        gap: 24px !important;
+        scroll-snap-type: none !important;
+    }
+    
+    .kanban-col {
+        min-width: 100% !important; /* Largura total */
+        width: 100% !important;
+        max-height: none !important; /* Altura livre */
+        margin-right: 0 !important;
+    }
+
+    /* Ajuste do Header do Kanban para centralizar */
+    .kanban-header-container {
+        flex-direction: column !important;
+        gap: 12px !important;
+        text-align: center;
+    }
+    
+    .kanban-header-controls {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .kanban-header-actions {
+        width: 100%;
+        display: flex;
+        justify-content: center; /* Centraliza os botões */
+        gap: 10px;
+    }
+
+    /* 2. CHATBOT MOBILE */
+    #chatbot-window {
+        width: 92% !important;        /* Ocupa quase toda a largura */
+        height: 65vh !important;      /* Altura confortável */
+        left: 4% !important;          /* Centraliza (4% de margem esquerda) */
+        right: auto !important;       
+        bottom: 100px !important;     /* Fica acima do botão FAB */
+        border-radius: 16px !important;
+        z-index: 2005 !important;     /* Garante que fique acima de tudo */
+    }
+
+    /* Ajuste fino no botão flutuante (FAB) */
+    #chatbot-fab {
+        bottom: 20px !important;
+        right: 20px !important;
+        z-index: 2000 !important;
+    }
+    
+    /* 3. MODAL (Geral) */
+    .modal-content { 
+        width: 95%; 
+        padding: 20px; 
+        max-height: 85vh; 
+        overflow-y: auto; 
+    }
+}
+
 
         /* --- MODULE SPECIFICS --- */
-        /* Kanban */
-        .kanban-board { display: flex; gap: 16px; overflow-x: auto; height: 100%; padding-bottom: 10px; }
-        .kanban-col { min-width: 300px; background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border); border-radius: 12px; padding: 12px; height: fit-content; max-height: 100%; display: flex; flex-direction: column; }
-        .kanban-card { background: rgba(255,255,255,0.05); padding: 14px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
-        .kanban-card:hover { border-color: var(--primary); background: rgba(255,255,255,0.08); transform: translateY(-2px); }
+        .kanban-board { display: flex; gap: 16px; overflow-x: auto; height: 100%; padding-bottom: 10px; scroll-snap-type: x mandatory; }
+        .kanban-col { min-width: 280px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; height: fit-content; max-height: 100%; display: flex; flex-direction: column; scroll-snap-align: start; }
+        [data-theme="light"] .kanban-col { background: rgba(0,0,0,0.03); }
+
+        .kanban-card { background: var(--bg-card); padding: 14px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; border: 1px solid var(--border); transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .kanban-card:hover { border-color: var(--primary); transform: translateY(-2px); }
         
-        /* Calendar */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
         .cal-head { text-align: center; color: var(--text-muted); font-weight: 600; padding: 10px; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
-        .cal-day { min-height: 100px; background: rgba(255,255,255,0.02); border-radius: 8px; padding: 6px; cursor: pointer; border: 1px solid transparent; }
-        .cal-day:hover { border-color: var(--border); background: rgba(255,255,255,0.04); }
+        .cal-day { min-height: 100px; background: var(--bg-hover); border-radius: 8px; padding: 6px; cursor: pointer; border: 1px solid transparent; }
+        .cal-day:hover { border-color: var(--border); background: rgba(150,150,150,0.1); }
         .event-dot { font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; cursor: pointer; transition: transform 0.1s; }
-        .event-dot:hover { transform: scale(1.02); }
         
-        /* Event Types Colors */
-        .ev-type-meeting { background: rgba(168, 85, 247, 0.2); color: #d8b4fe; } /* Purple */
-        .ev-type-daily { background: rgba(59, 130, 246, 0.2); color: #93c5fd; } /* Blue */
-        .ev-type-deadline { background: rgba(239, 68, 68, 0.2); color: #fca5a5; } /* Red */
-        .ev-type-other { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; } /* Gray */
+        .ev-type-meeting { background: rgba(168, 85, 247, 0.2); color: #d8b4fe; } 
+        .ev-type-daily { background: rgba(59, 130, 246, 0.2); color: #93c5fd; } 
+        .ev-type-deadline { background: rgba(239, 68, 68, 0.2); color: #fca5a5; } 
+        .ev-type-other { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+        
+        [data-theme="light"] .ev-type-meeting { background: #f3e8ff; color: #7e22ce; }
+        [data-theme="light"] .ev-type-daily { background: #dbeafe; color: #1d4ed8; }
+        [data-theme="light"] .ev-type-deadline { background: #fee2e2; color: #b91c1c; }
+        [data-theme="light"] .ev-type-other { background: #f1f5f9; color: #475569; }
+
+        /* --- CHATBOT --- */
+        #chatbot-fab {
+            position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px;
+            border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--accent)); color: white;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4); cursor: pointer; z-index: 2000;
+            transition: transform 0.2s;
+        }
+        #chatbot-fab:hover { transform: scale(1.1) rotate(10deg); }
+        
+        #chatbot-window {
+            position: fixed; bottom: 100px; right: 30px; width: 380px; height: 550px;
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+            display: none; flex-direction: column; z-index: 2000;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3); overflow: hidden;
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .chat-header { padding: 15px; background: var(--bg-hover); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .chat-body { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; font-size: 14px; background: rgba(0,0,0,0.05); }
+        .chat-footer { padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; background: var(--bg-card); }
+        
+        .msg { padding: 10px 14px; border-radius: 12px; max-width: 85%; line-height: 1.5; }
+        .msg.bot { background: rgba(99, 102, 241, 0.15); color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 2px; border: 1px solid rgba(99, 102, 241, 0.1); }
+        .msg.user { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .typing { font-style: italic; opacity: 0.6; font-size: 11px; margin-left: 10px; color: var(--accent); }
 
         /* Toast & Modal */
-        #toast-container { position: fixed; bottom: 30px; right: 30px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
-        .toast { background: #1e293b; border: 1px solid var(--border); color: white; padding: 14px 24px; border-radius: 8px; display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); animation: slideIn 0.3s; }
-
+        #toast-container { position: fixed; bottom: 30px; left: 30px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 14px 24px; border-radius: 8px; display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); animation: slideIn 0.3s; }
+        @keyframes fadeIn { from {opacity: 0} to {opacity: 1} }
         #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 1000; justify-content: center; align-items: center; }
         #modal.show { display: flex; animation: fadeIn 0.2s; }
-        .modal-content { background: #1e293b; width: 500px; max-width: 90%; border-radius: 16px; padding: 24px; border: 1px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); }
+        .modal-content { background: var(--bg-card); width: 500px; max-width: 90%; border-radius: 16px; padding: 24px; border: 1px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); color: var(--text-main); }
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
-        @keyframes fadeIn { from {opacity: 0} to {opacity: 1} }
     </style>
 </head>
 <body>
 
+<div id="overlay" class="overlay" onclick="app.toggleSidebar()"></div>
+
 <div id="app">
-    <aside>
+    <aside id="sidebar">
         <div class="brand">
-            <i class="ph ph-stack" style="color: #a855f7;"></i> FLUXO
+            <div style="display:flex; align-items:center; gap:10px">
+                <i class="ph ph-infinity" style="color: #a855f7;"></i> FLUXO
+            </div>
+            <button class="btn ghost" style="width:36px; padding:0;" onclick="app.toggleTheme()" title="Mudar Tema">
+                <i id="themeIcon" class="ph ph-moon"></i>
+            </button>
         </div>
         <nav id="menu"></nav>
         <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border)">
@@ -208,26 +441,54 @@
                 <span>Storage</span>
                 <span id="storageSize">0%</span>
             </div>
-            <div style="width:100%; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; margin-top:6px;">
+            <div style="width:100%; height:4px; background:var(--bg-hover); border-radius:2px; margin-top:6px;">
                 <div id="storageBar" style="width:0%; height:100%; background:var(--accent); border-radius:2px;"></div>
+            </div>
+            <div style="margin-top: 15px; text-align: center;">
+                <a href="auth.html" style="color: var(--danger); text-decoration: none; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <i class="ph ph-sign-out"></i> Sair
+                </a>
             </div>
         </div>
     </aside>
 
     <main>
         <header>
-            <div>
-                <h1 id="pageTitle" style="margin:0; font-size:20px; font-weight:700;">Dashboard</h1>
-                <div id="pageSub" class="muted">Visão geral do sistema</div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button class="menu-toggle" onclick="app.toggleSidebar()"><i class="ph ph-list"></i></button>
+                <div>
+                    <h1 id="pageTitle" style="margin:0; font-size:20px; font-weight:700;">Dashboard</h1>
+                    <div id="pageSub" class="muted" style="display:none; @media(min-width:768px){display:block}">Visão geral do sistema</div>
+                </div>
             </div>
             <div style="display: flex; gap: 10px;">
-                <button class="btn ghost" onclick="app.exportData()"><i class="ph ph-download-simple"></i> Backup</button>
-                <button class="btn ghost" onclick="document.getElementById('importFile').click()"><i class="ph ph-upload-simple"></i> Restaurar</button>
+                <button class="btn ghost" onclick="app.exportData()"><i class="ph ph-download-simple"></i> <span style="display:none; @media(min-width:768px){display:inline}">Backup</span></button>
+                <button class="btn ghost" onclick="document.getElementById('importFile').click()"><i class="ph ph-upload-simple"></i> <span style="display:none; @media(min-width:768px){display:inline}">Restaurar</span></button>
                 <input type="file" id="importFile" hidden onchange="app.importData(this)">
             </div>
         </header>
         <div id="content" class="view-content"></div>
     </main>
+</div>
+
+<div id="chatbot-fab" onclick="fluxoAI.toggle()" title="Falar com IA">
+    <i class="ph ph-sparkle" style="font-size: 28px;"></i>
+</div>
+
+<div id="chatbot-window">
+    <div class="chat-header">
+        <div style="font-weight: 700; color: var(--accent); display:flex; align-items:center; gap:8px;">
+            <i class="ph ph-robot"></i> Nami
+        </div>
+        <button class="btn ghost" style="padding: 4px 8px;" onclick="fluxoAI.toggle()"><i class="ph ph-x"></i></button>
+    </div>
+    <div class="chat-body" id="chatBody">
+        <div class="msg bot">Olá! Eu tenho acesso aos seus dados do FLUXO. Pergunte sobre suas tarefas, agenda ou peça dicas de produtividade! 🚀</div>
+    </div>
+    <div class="chat-footer">
+        <input id="chatInput" placeholder="Pergunte algo..." onkeypress="if(event.key==='Enter') fluxoAI.send()">
+        <button class="btn" style="padding: 8px 12px;" onclick="fluxoAI.send()"><i class="ph ph-paper-plane-right"></i></button>
+    </div>
 </div>
 
 <div id="modal">
@@ -238,8 +499,7 @@
 
 <script>
 /**
- * FLUXO v5.0 - Versão Estável + Features
- * Restaura todas as funcionalidades detalhadas da V3 e integra as novas da V4 (Multi-Kanban, Eventos Categorizados, Dashboard Rico).
+ * FLUXO v7.1 - IA com Contexto Completo
  */
 
 const VIEWS = {
@@ -260,9 +520,9 @@ const DEFAULT_STATE = {
     tasks: [],
     boards: [], 
     cards: [],
-    events: [], // Agora inclui 'type'
+    events: [],
     notes: [],
-    habits: [], // Agora inclui 'tags'
+    habits: [],
     pomodoro: { history: [], settings: { work: 25, break: 5 } },
     snippets: [],
     bookmarks: [],
@@ -277,29 +537,355 @@ const EV_CONFIG = {
     'other': { icon: 'ph-calendar-blank', color: '#94a3b8', label: 'Outro' }
 };
 
+/* --- MÓDULO AI COM VISÃO TOTAL E FUNÇÕES DE ASSISTENTE --- */
+const fluxoAI = {
+    isOpen: false,
+    
+    toggle() {
+        const win = document.getElementById('chatbot-window');
+        this.isOpen = !this.isOpen;
+        win.style.display = this.isOpen ? 'flex' : 'none';
+        if(this.isOpen) document.getElementById('chatInput').focus();
+    },
+
+    addMsg(text, type) {
+        const body = document.getElementById('chatBody');
+        const div = document.createElement('div');
+        div.className = `msg ${type}`;
+        div.innerHTML = text.replace(/\n/g, '<br>'); 
+        body.appendChild(div);
+        body.scrollTop = body.scrollHeight;
+    },
+
+    async send() {
+        const inp = document.getElementById('chatInput');
+        const txt = inp.value.trim();
+        if(!txt) return;
+        
+        this.addMsg(txt, 'user');
+        inp.value = '';
+        
+        const typing = document.createElement('div');
+        typing.className = 'typing';
+        typing.id = 'ai-typing';
+        typing.innerText = 'Nami está analisando o contexto completo e buscando a melhor ação...';
+        document.getElementById('chatBody').appendChild(typing);
+
+        try {
+            await this.processQuery(txt);
+        } catch (e) {
+            console.error(e);
+            this.addMsg("Erro ao conectar com a IA.", 'bot');
+        } finally {
+            const t = document.getElementById('ai-typing');
+            if(t) t.remove();
+        }
+    },
+    
+    // --- FUNÇÃO DE PROCESSAMENTO DE COMANDOS E RESPOSTAS ---
+    processCommand(response) {
+        // Formato esperado: [ACTION:TIPO|PARAMETRO1|PARAMETRO2|...]
+        if (response.startsWith('[ACTION:') && response.endsWith(']')) {
+            const command = response.slice(8, -1); // Remove [ACTION: e ]
+            // O uso de trim() é essencial para limpar espaços extras que a IA possa gerar
+            const [type, ...params] = command.split('|').map(p => p.trim());
+            
+            switch (type) {
+                case 'CREATE_TASK':
+                    // Parâmetros: Título, Prioridade, Prazo (YYYY-MM-DD), Board ID
+                    app.ai_createTask(params[0], params[1], params[2], params[3]);
+                    this.addMsg(`Comando executado: Tarefa "${params[0]}" criada.`, 'bot');
+                    break;
+                case 'CREATE_NOTE':
+                    // Parâmetros: Título, Conteúdo, Cor
+                    app.ai_createNote(params[0], params[1], params[2]);
+                    this.addMsg(`Comando executado: Nota "${params[0]}" adicionada.`, 'bot');
+                    break;
+                case 'ADD_KANBAN':
+                    // Parâmetros: Título, Descrição, Prazo, Estimativa, Board ID
+                    app.ai_addKanbanCard(params[0], params[1], params[2], params[3], params[4]);
+                    this.addMsg(`Comando executado: Card Kanban "${params[0]}" adicionado.`, 'bot');
+                    break;
+                default:
+                    this.addMsg("Comando desconhecido.", 'bot');
+            }
+            return true; // Comando executado
+        }
+        return false; // Não é um comando
+    },
+    // -------------------------------------------------------------
+
+    async processQuery(userQuestion) {
+        const state = app.state;
+        const today = new Date();
+        const todayStr = today.toISOString().slice(0,10);
+        
+        let urgencyContext = [];
+        
+        // 1. Analisar Tarefas
+        const tasksList = state.tasks.filter(t => !t.done).map(t => {
+            let alert = '';
+            if(t.deadline) {
+                const diff = Math.ceil((new Date(t.deadline) - today) / (1000 * 60 * 60 * 24));
+                if(diff < 0) alert = '[ATRASADO!]';
+                else if(diff <= 3) alert = `[URGENTE: ${diff} dias restantes]`;
+                else alert = `(Prazo: ${new Date(t.deadline).toLocaleDateString()})`;
+                
+                if(diff <= 3) urgencyContext.push(`TAREFA CRÍTICA: "${t.title}" vence em ${diff} dias.`);
+            }
+            return `- [ ] ${t.title} ${alert} [Progresso: ${t.progress || 0}%] (Prio: ${t.priority || 'Média'})`;
+        }).join('\n');
+
+        // 2. Analisar Kanban
+        const cardsList = state.cards.map(c => {
+            let alert = '';
+            if(c.deadline) {
+                const diff = Math.ceil((new Date(c.deadline) - today) / (1000 * 60 * 60 * 24));
+                if(diff <= 3 && c.col !== 'done') urgencyContext.push(`PROJETO CRÍTICO: "${c.title}" vence em ${diff} dias.`);
+                alert = `| Prazo: ${new Date(c.deadline).toLocaleDateString()}`;
+            }
+            return `- Card: ${c.title} | Coluna: ${c.col} ${alert} [${c.progress || 0}%] (Board: ${c.boardId})`;
+        }).join('\n');
+        
+        // 3. Roadmap
+        const roadmapList = state.roadmap.map((r, i) => {
+            return `${i+1}. ${r.title} [Status: ${r.status}]`;
+        }).join('\n');
+
+        // 4. Agenda (Eventos de Hoje/Próximos)
+        const upcomingEvents = state.events.filter(e => new Date(e.date) >= today.setHours(0,0,0,0))
+            .sort((a,b) => new Date(a.date) - new Date(b.date))
+            .slice(0, 5) // Mais eventos para melhor contexto
+            .map(e => {
+                const date = new Date(e.date).toLocaleDateString('pt-BR');
+                return `- ${e.title} (${e.type}) em ${date}`;
+            }).join('\n');
+            
+        // 5. Hábitos
+        const habitsList = state.habits.map(h => {
+            const doneToday = h.streaks[todayStr] ? 'CONCLUÍDO' : 'PENDENTE';
+            return `- ${h.name} (${doneToday}) [Meta: ${h.target || 'Não definida'}]`;
+        }).join('\n');
+        
+        // 6. Notas e Documentos (Vault)
+        const notesList = state.notes.slice(0, 5).map(n => `- Nota: ${n.title} [Cor: ${n.color}]`).join('\n');
+        const docsList = state.docs.slice(0, 3).map(d => `- Arquivo: ${d.name}`).join('\n');
+        
+        // 7. Pomodoro
+        const pomoConfig = `Trabalho: ${state.pomodoro.settings.work}m / Pausa: ${state.pomodoro.settings.break}m.`;
+        const sessionsToday = state.pomodoro.history.filter(h => h.date === todayStr).length;
+        const pomoHistory = `Sessões concluídas hoje: ${sessionsToday}.`;
+        
+        // 8. Snippets e Bookmarks
+        const snippetList = state.snippets.slice(0, 3).map(s => `- Snippet: ${s.title} (${s.lang})`).join('\n');
+        const bookmarkList = state.bookmarks.slice(0, 3).map(b => `- Bookmark: ${b.title} (${b.url.substring(0, 30)}...)`).join('\n');
+        
+        // 9. Boards Disponíveis
+        const boardsInfo = state.boards.map(b => `${b.title} (ID: ${b.id})`).join('; ');
+        
+        
+        // --- INSTRUÇÕES E CONTEXTO FINAL ENVIADO À IA ---
+        const instructions = `
+            INSTRUÇÕES PARA AÇÃO (ASSISTENTE EXECUTIVO):
+            Se a PERGUNTA DO USUÁRIO for um pedido claro para *criar* uma Tarefa, Nota ou Card Kanban, você DEVE responder SOMENTE com um Comando Estruturado no formato: [ACTION:TIPO|PARAM1|PARAM2|...]. 
+            NÃO inclua texto de resposta antes ou depois do comando.
+
+            FORMATOS DE COMANDO (Use os IDs e as cores listadas no contexto):
+            - Criar Tarefa: [ACTION:CREATE_TASK|Título da Tarefa|Prioridade (Alta, Média, Baixa)|Prazo (YYYY-MM-DD - Vazio se não houver)|Board ID (Vazio se não houver)]
+            - Criar Nota: [ACTION:CREATE_NOTE|Título da Nota|Conteúdo Completo|Cor (default, white, yellow, blue, green, pink - Vazio se for default)]
+            - Adicionar Card Kanban: [ACTION:ADD_KANBAN|Título do Card|Descrição|Prazo (YYYY-MM-DD)|Estimativa (Vazio se não houver)|Board ID]
+
+            Se a pergunta for análise, conselho ou status, responda normalmente com texto, usando as informações do CONTEXTO DETALHADO.
+        `;
+
+        const context = `
+            Você é o assistente executivo Nami, do FLUXO. Hoje é ${today.toLocaleDateString('pt-BR')}.
+            
+            ${instructions}
+            
+            ALERTA DE PRIORIDADE MÁXIMA:
+            ${urgencyContext.length > 0 ? urgencyContext.join('\n') : 'Nenhuma urgência iminente (próximos 3 dias).'}
+
+            CONTEXTO DETALHADO (VISÃO GERAL DO FLUXO):
+            
+            1. TAREFAS A FAZER (Prioridades e Prazos):
+            ${tasksList || 'Lista vazia.'}
+
+            2. KANBAN (Projetos em Andamento):
+            ${cardsList || 'Nenhum projeto.'}
+            
+            3. ROADMAP (Ordem de Entrega):
+            ${roadmapList || 'Nenhum item no roadmap.'}
+
+            4. AGENDA (Próximos Eventos/Prazos):
+            ${upcomingEvents || 'Agenda livre para os próximos dias.'}
+
+            5. HÁBITOS (Status de Hoje):
+            ${habitsList || 'Nenhum hábito rastreado.'}
+            
+            6. NOTAS RECENTES:
+            ${notesList || 'Nenhuma nota recente.'}
+
+            7. VAULT/ARQUIVOS:
+            ${docsList || 'Nenhum arquivo.'}
+
+            8. CÓDIGOS/LINKS:
+            - Snippets: ${snippetList || 'Nenhum snippet.'}
+            - Bookmarks: ${bookmarkList || 'Nenhum bookmark.'}
+
+            9. CONFIGURAÇÕES:
+            - Boards/Projetos Disponíveis: ${boardsInfo || 'Nenhum board disponível.'}
+            - Configuração Pomodoro: ${pomoConfig} | ${pomoHistory}
+
+            PERGUNTA DO USUÁRIO: ${userQuestion}
+        `;
+        
+        const encodedPrompt = encodeURIComponent(context);
+        const url = `https://text.pollinations.ai/${encodedPrompt}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Falha na API');
+        
+        const aiText = await response.text();
+        const cleanAiText = aiText.trim();
+
+        // 3. EXECUTA O COMANDO (se for um) ou exibe o texto
+        const executed = this.processCommand(cleanAiText);
+
+        if (!executed) {
+            this.addMsg(cleanAiText, 'bot');
+        }
+    }
+};
+
 const app = {
     state: {},
     timerInterval: null,
     calendarCursor: new Date(),
-    currentBoardId: null, // Novo: ID do board Kanban ativo
-    
+    currentBoardId: null,
+    theme: 'dark', // Padrão
+
     init() {
         this.loadState();
+        this.loadTheme(); // Carrega o tema salvo
         this.renderMenu();
         this.router('dashboard');
         this.updateStorageStats();
+        
+        // Listeners globais
         document.getElementById('modal').addEventListener('click', (e) => {
             if (e.target.id === 'modal') this.closeModal();
         });
+        
+        // Listener para fechar menu mobile ao clicar em link
+        document.addEventListener('click', (e) => {
+            if(window.innerWidth < 768 && e.target.closest('nav button')) {
+                this.toggleSidebar();
+            }
+        });
     },
+
+    // --- THEME & MOBILE ---
+    loadTheme() {
+        const saved = localStorage.getItem('fluxo_theme') || 'dark';
+        this.theme = saved;
+        this.applyTheme();
+    },
+    toggleTheme() {
+        this.theme = this.theme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem('fluxo_theme', this.theme);
+        this.applyTheme();
+    },
+    applyTheme() {
+        const html = document.documentElement;
+        const icon = document.getElementById('themeIcon');
+        
+        if (this.theme === 'light') {
+            html.setAttribute('data-theme', 'light');
+            icon.className = 'ph ph-sun';
+            icon.style.color = '#f59e0b';
+        } else {
+            html.removeAttribute('data-theme');
+            icon.className = 'ph ph-moon';
+            icon.style.color = '#a855f7';
+        }
+    },
+    toggleSidebar() {
+        const sb = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        sb.classList.toggle('open');
+        overlay.classList.toggle('show');
+    },
+
+    // --- FUNÇÕES AUXILIARES PARA A AI ---
+    ai_createTask(title, priority='Média', deadline='', boardId='') {
+        const id = this.uid();
+        const newTask = { 
+            id, 
+            title: title, 
+            boardId: boardId || this.state.boards[0]?.id || '', // Pega o primeiro board se nenhum for especificado
+            deadline: deadline,
+            estimate: '', responsible: 'AI', type: 'Feature',
+            priority: priority,
+            done: false, progress: 0, inKanban: false 
+        };
+
+        this.state.tasks.unshift(newTask);
+        if(newTask.deadline) this.syncToCalendar(newTask.id, newTask.title, newTask.deadline);
+        this.saveState(); 
+        
+        // Renderiza a aba atual se for tasks, ou o kanban se for kanban
+        if(this.currentTab === 'tasks') this.render_tasks(document.getElementById('tasks-area'));
+        if(this.currentTab === 'kanban') this.render_kanban(document.getElementById('kanban-area'));
+
+        this.toast(`Tarefa criada: "${title}"`, 'success');
+    },
+
+    ai_createNote(title, body, color='default') {
+        this.state.notes.unshift({ 
+            id: this.uid(), 
+            title: title, 
+            body: body, 
+            color: color, 
+            updated: new Date() 
+        });
+        this.saveState();
+        if(this.currentTab === 'notes') this.render_notes(document.getElementById('notes-area'));
+        this.toast(`Nota "${title}" adicionada.`, 'success');
+    },
+
+    ai_addKanbanCard(title, desc, deadline, estimate, boardId='') {
+        const targetBoardId = boardId || this.state.boards[0]?.id;
+        if(!targetBoardId) {
+            this.toast("Não foi possível criar Card: Nenhum projeto/board disponível.", "error");
+            return;
+        }
+
+        this.state.cards.push({
+            id: this.uid(),
+            originId: null, // Card criado diretamente, sem link com tarefa
+            boardId: targetBoardId,
+            col: 'todo',
+            title: title,
+            desc: desc || '',
+            deadline: deadline || '',
+            estimate: estimate || '',
+            progress: 0
+        });
+        
+        this.syncToCalendar(this.uid(), title, deadline);
+        this.saveState();
+        if(this.currentTab === 'kanban') this.render_kanban(document.getElementById('kanban-area'));
+        
+        const bTitle = this.state.boards.find(b=>b.id===targetBoardId)?.title;
+        this.toast(`Card Kanban criado em: ${bTitle}`, 'success');
+    },
+    // -------------------------------------------------------------------
 
     /* --- CORE & STATE --- */
     loadState() {
-        // Usa 'fluxo_v5' para evitar conflito com versões anteriores
         const raw = localStorage.getItem('fluxo_v5');
         this.state = raw ? { ...DEFAULT_STATE, ...JSON.parse(raw) } : JSON.parse(JSON.stringify(DEFAULT_STATE));
         if(!this.state.boards.length) this.seedKanban();
-        // Garante que o currentBoardId esteja setado se houver boards
         this.currentBoardId = this.state.boards[0]?.id || null;
     },
 
@@ -344,8 +930,26 @@ const app = {
         this.saveState();
     },
 
-    /* --- UTILS & MODALS --- */
+    /* --- UTILS --- */
     uid: () => Date.now().toString(36) + Math.random().toString(36).substr(2),
+
+    /* --- SYNC HELPERS --- */
+    // Adicione isso logo após app.uid()
+    syncToCalendar(refId, title, date, type='deadline') {
+        // 1. Remove evento antigo ligado a este item (se houver)
+        this.state.events = this.state.events.filter(e => e.refId !== refId);
+        
+        // 2. Se tiver data, cria novo evento
+        if(date) {
+            this.state.events.push({
+                id: this.uid(),
+                refId: refId, // Link importante para saber quem criou o evento
+                title: `Prazo: ${title}`,
+                date: date,
+                type: type // Usa a cor vermelha de 'deadline' definida no CSS/Config
+            });
+        }
+    },
     
     toast(msg, type='info') {
         const el = document.createElement('div');
@@ -398,7 +1002,6 @@ const app = {
         document.getElementById('promptInput').onkeypress = (e) => { if(e.key === 'Enter') submit(); };
     },
 
-    /* --- DATA MGMT --- */
     exportData() {
         const blob = new Blob([JSON.stringify(this.state)], {type: 'application/json'});
         const url = URL.createObjectURL(blob);
@@ -425,20 +1028,18 @@ const app = {
         document.getElementById('storageBar').style.width = `${pct}%`;
     },
 
-    /* ==================== VIEWS ==================== */
+    /* ==================== VIEWS & MODULES ==================== */
 
-    // 1. DASHBOARD (Rico)
+    // 1. DASHBOARD
     render_dashboard(root) {
         const tasks = this.state.tasks;
         const today = new Date().toISOString().slice(0,10);
         
-        // Filter and sort upcoming events
         const upcomingEvents = this.state.events
             .filter(e => e.date >= today)
             .sort((a,b) => new Date(a.date) - new Date(b.date))
             .slice(0, 4);
 
-        // Bookmarks
         const bookmarks = this.state.bookmarks.slice(0, 3);
 
         root.innerHTML = `
@@ -518,100 +1119,290 @@ const app = {
         `;
     },
 
-    // 2. TASKS (Restaurado com integração Kanban)
+  // 2. TAREFAS (COM PROJETO, % RESTAURADA E SYNC ÚNICO)
     render_tasks(root) {
+        const PRIORITY_COLORS = { 'Alta': '#ef4444', 'Média': '#f59e0b', 'Baixa': '#10b981' };
+
         const renderList = () => {
             const list = document.getElementById('taskList');
             list.innerHTML = this.state.tasks.length === 0 ? '<div class="muted text-center" style="padding:20px">Nenhuma tarefa.</div>' : 
-            this.state.tasks.map(t => `
-                <div class="card" style="margin-bottom:8px; padding:12px; display:flex; align-items:center; gap:12px; opacity:${t.done?0.6:1}; border-left: 3px solid ${t.done?'#34d399':'#6366f1'}">
-                    <div onclick="app.toggleTask('${t.id}')" style="cursor:pointer; width:24px; height:24px; border-radius:6px; border:2px solid ${t.done?'#34d399':'#6366f1'}; background:${t.done?'#34d399':'transparent'}; display:flex; align-items:center; justify-content:center">
-                        ${t.done ? '<i class="ph ph-check" style="color:#0f172a"></i>' : ''}
-                    </div>
-                    <div style="flex:1">
-                        <div style="font-weight:500; text-decoration:${t.done?'line-through':''}">${t.title}</div>
-                        <div class="muted" style="font-size:11px">${t.tag ? '#'+t.tag : ''}</div>
-                    </div>
-                    <div style="display:flex; gap:6px">
-                        <button class="btn ghost" style="padding:6px 10px" title="Mover para Kanban" onclick="app.moveTaskToKanban('${t.id}')"><i class="ph ph-kanban"></i></button>
-                        <button class="btn danger" style="padding:6px 10px" onclick="app.delTask('${t.id}')"><i class="ph ph-trash"></i></button>
+            this.state.tasks.map(t => {
+                // Lógica de Prazo
+                let deadlineHtml = '';
+                if(t.deadline) {
+                    const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000 * 60 * 60 * 24));
+                    let color = diff < 0 ? '#ef4444' : (diff <= 3 ? '#f59e0b' : '#94a3b8');
+                    deadlineHtml = `<span style="font-size:10px; color:${color}; border:1px solid ${color}; padding:1px 5px; border-radius:4px; display:flex; align-items:center; gap:3px"><i class="ph ph-flag"></i> ${new Date(t.deadline).toLocaleDateString('pt-BR').slice(0,5)}</span>`;
+                }
+
+                // Nome do Projeto (Board)
+                const boardName = t.boardId ? (this.state.boards.find(b=>b.id===t.boardId)?.title || 'Projeto desc.') : null;
+                const projectTag = boardName ? `<span class="tag-pill" style="background:rgba(99,102,241,0.2); color:#a5b4fc"><i class="ph ph-squares-four" style="font-size:10px"></i> ${boardName}</span>` : '';
+
+                // Botão Kanban
+                const kanbanBtn = t.inKanban 
+                    ? `<button class="btn ghost" style="padding:6px 10px; opacity:0.3; cursor:not-allowed" title="Já está no Kanban"><i class="ph ph-kanban"></i></button>`
+                    : `<button class="btn ghost" style="padding:6px 10px" title="Enviar para o Board do Projeto" onclick="app.copyToKanban('${t.id}')"><i class="ph ph-arrow-fat-right"></i></button>`;
+
+                return `
+                <div class="card" style="margin-bottom:8px; padding:12px; border-left: 3px solid ${PRIORITY_COLORS[t.priority]||'#94a3b8'}">
+                    <div style="display:flex; gap:12px; align-items:flex-start">
+                        <div onclick="app.toggleTask('${t.id}')" style="cursor:pointer; margin-top:2px; width:20px; height:20px; border-radius:6px; border:2px solid ${t.done?'#34d399':'#6366f1'}; background:${t.done?'#34d399':'transparent'}; display:flex; align-items:center; justify-content:center; flex-shrink:0">
+                            ${t.done ? '<i class="ph ph-check" style="color:#0f172a; font-size:12px"></i>' : ''}
+                        </div>
+                        <div style="flex:1; overflow:hidden;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:4px">
+                                <span style="font-weight:500; text-decoration:${t.done?'line-through':''}">${t.title}</span>
+                                <small class="muted">${t.estimate||''}</small>
+                            </div>
+                            
+                            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:6px">
+                                ${deadlineHtml}
+                                ${projectTag}
+                                <span class="tag-pill">${t.priority}</span>
+                                ${t.type ? `<span class="tag-pill">${t.type}</span>` : ''}
+                                ${t.responsible ? `<span class="muted" style="font-size:10px">👤 ${t.responsible}</span>` : ''}
+                            </div>
+
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="flex:1; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden">
+                                    <div style="width:${t.progress||0}%; height:100%; background:${t.done?'#34d399':'var(--primary)'}"></div>
+                                </div>
+                                <span style="font-size:10px" class="muted">${t.progress||0}%</span>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; gap:4px">
+                            ${kanbanBtn}
+                            <button class="btn ghost" style="padding:4px 8px" onclick="app.editTaskPrompt('${t.id}')"><i class="ph ph-pencil-simple"></i></button>
+                            <button class="btn danger ghost" style="padding:4px 8px" onclick="app.delTask('${t.id}')"><i class="ph ph-trash"></i></button>
+                        </div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         };
 
+        // UI de Input (Atualizada para Mobile)
         root.innerHTML = `
             <div class="grid">
-                <div class="col-12 card" style="display:flex; gap:10px">
-                    <input id="newTask" placeholder="O que você precisa fazer?" onkeypress="if(event.key==='Enter') document.getElementById('addT').click()">
-                    <input id="newTag" placeholder="Tag" style="width:120px">
-                    <button id="addT" class="btn">Adicionar</button>
+                <div class="col-12 card task-input-wrapper" style="display:flex; flex-direction:column; gap:10px">
+                    <div class="task-row-1" style="display:flex; gap:10px">
+                        <input id="newTask" placeholder="Título da nova tarefa..." style="flex:2">
+                        <select id="newBoard" style="flex:1; color:var(--accent); font-weight:600">
+                            <option value="">Selecionar Projeto...</option>
+                            ${this.state.boards.map(b => `<option value="${b.id}">${b.title}</option>`).join('')}
+                        </select>
+                    </div>
+                    
+                    <div class="task-row-2" style="display:flex; gap:10px; align-items:center;">
+                        <input id="newDate" type="date" style="flex:1">
+                        <input id="newEst" placeholder="Tempo" style="width:80px">
+                        <input id="newResp" placeholder="Resp." style="flex:1">
+                        <select id="newType" style="flex:1"><option value="">Tipo...</option><option>Feature</option><option>Bug</option><option>Conteúdo</option><option>Admin</option></select>
+                        <select id="newPrio" style="width:100px"><option>Baixa</option><option selected>Média</option><option>Alta</option></select>
+                        <button id="addT" class="btn">Add</button>
+                    </div>
                 </div>
                 <div class="col-12" id="taskList"></div>
             </div>
         `;
         
+        // Lógica de Adicionar (Mantida)
         document.getElementById('addT').onclick = () => {
             const title = document.getElementById('newTask').value;
-            const tag = document.getElementById('newTag').value;
+            const boardId = document.getElementById('newBoard').value;
+            
             if(!title) return;
-            this.state.tasks.unshift({ id: this.uid(), title, tag, done: false });
-            this.saveState();
-            renderList();
+            if(!boardId && this.state.boards.length > 0) {
+                 this.toast('Por favor, selecione um Projeto (Board).', 'error');
+                 return;
+            }
+
+            const id = this.uid();
+            const newTask = { 
+                id, title, boardId,
+                deadline: document.getElementById('newDate').value,
+                estimate: document.getElementById('newEst').value,
+                responsible: document.getElementById('newResp').value,
+                type: document.getElementById('newType').value,
+                priority: document.getElementById('newPrio').value,
+                done: false, progress: 0, inKanban: false 
+            };
+
+            this.state.tasks.unshift(newTask);
+            if(newTask.deadline) this.syncToCalendar(newTask.id, newTask.title, newTask.deadline);
+            this.saveState(); renderList();
+            
             document.getElementById('newTask').value = '';
         };
-        
-        this.toggleTask = (id) => { const t = this.state.tasks.find(x=>x.id===id); if(t) { t.done = !t.done; this.saveState(); renderList(); }};
+
+        // Toggle Task (Adicionado Sync com Kanban)
+        this.toggleTask = (id) => { 
+            const t = this.state.tasks.find(x=>x.id===id); 
+            if(t) { 
+                t.done = !t.done; 
+                t.progress = t.done?100:0; 
+                
+                // Sincroniza progresso e coluna para o Card Kanban
+                const linkedCard = this.state.cards.find(c => c.originId === t.id);
+                if(linkedCard) {
+                    linkedCard.progress = t.progress;
+                    if(t.done) linkedCard.col = 'done';
+                    if(!t.done && linkedCard.col === 'done') linkedCard.col = 'todo'; // Volta para 'A fazer'
+                }
+
+                this.saveState(); 
+                renderList(); 
+                // Se a aba Kanban estiver aberta, forçamos a renderização para mostrar a mudança
+                if(this.currentTab === 'kanban') this.render_kanban(document.getElementById('kanban-content'));
+            }
+        };
         
         this.delTask = (id) => {
-            this.confirmModal('Tem certeza que deseja excluir esta tarefa?', () => {
+            this.confirmModal('Excluir tarefa?', () => {
                 this.state.tasks = this.state.tasks.filter(x=>x.id!==id);
+                this.syncToCalendar(id, null, null); // Remove da agenda
                 this.saveState(); renderList();
             });
         };
 
-        this.moveTaskToKanban = (id) => {
+        this.copyToKanban = (id) => {
             const t = this.state.tasks.find(x=>x.id===id);
             if(!t) return;
-            // Usa o board ativo, ou o primeiro disponível
-            const targetBoardId = this.currentBoardId || this.state.boards[0]?.id;
-            if(!targetBoardId) return this.toast("Crie um board Kanban primeiro!", "error");
+            
+            const targetBoardId = t.boardId || this.currentBoardId || this.state.boards[0]?.id;
+            
+            if(!targetBoardId) return this.toast("Nenhum projeto selecionado!", "error");
 
-            this.confirmModal(`Mover "${t.title}" para o Kanban? (A tarefa será removida desta lista)`, () => {
+            this.confirmModal(`Enviar "${t.title}" para o Kanban?`, () => {
                 this.state.cards.push({
                     id: this.uid(),
+                    originId: t.id, // VÍNCULO IMPORTANTE
                     boardId: targetBoardId,
                     col: 'todo',
                     title: t.title,
-                    desc: `Tag da Tarefa: ${t.tag || 'Nenhuma'}`
+                    desc: `Resp: ${t.responsible||'-'} | Tipo: ${t.type||'-'}`,
+                    deadline: t.deadline,
+                    estimate: t.estimate,
+                    progress: t.progress
                 });
-                this.state.tasks = this.state.tasks.filter(x=>x.id!==id);
+                
+                t.inKanban = true;
                 this.saveState();
-                this.toast(`Tarefa movida para o Kanban (${this.state.boards.find(b=>b.id===targetBoardId)?.title})!`);
+                const bTitle = this.state.boards.find(b=>b.id===targetBoardId)?.title;
+                this.toast(`Enviado para: ${bTitle}`);
                 renderList();
             });
         };
+        
+        // --- FUNÇÃO DE EDIÇÃO CORRIGIDA E COM SINCRONIZAÇÃO KANBAN ---
+        this.editTaskPrompt = (id) => {
+            const t = this.state.tasks.find(x=>x.id===id);
+            if(!t) return;
+
+            this.openModal(`
+                <h3>Editar Tarefa</h3>
+                <label class="muted">Título</label>
+                <input id="edTitle" value="${t.title}" style="margin-bottom:10px">
+                
+                <div style="display:flex; gap:10px; margin-bottom:10px">
+                    <div style="flex:1"><label class="muted">Prazo</label><input id="edDate" type="date" value="${t.deadline||''}"></div>
+                    <div style="flex:1"><label class="muted">Estimativa</label><input id="edEst" value="${t.estimate||''}"></div>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-bottom:10px">
+                    <div style="flex:1"><label class="muted">Responsável</label><input id="edResp" value="${t.responsible||''}"></div>
+                    <div style="flex:1">
+                         <label class="muted">Prioridade</label>
+                         <select id="edPrio">
+                            <option value="Baixa" ${t.priority==='Baixa'?'selected':''}>Baixa</option>
+                            <option value="Média" ${t.priority==='Média'?'selected':''}>Média</option>
+                            <option value="Alta" ${t.priority==='Alta'?'selected':''}>Alta</option>
+                         </select>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom:10px">
+                    <label class="muted">Tipo</label>
+                    <select id="edType" style="width:100%">
+                        <option value="Feature" ${t.type==='Feature'?'selected':''}>Feature</option>
+                        <option value="Bug" ${t.type==='Bug'?'selected':''}>Bug</option>
+                        <option value="Conteúdo" ${t.type==='Conteúdo'?'selected':''}>Conteúdo</option>
+                        <option value="Admin" ${t.type==='Admin'?'selected':''}>Admin</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom:20px">
+                    <label class="muted">Progresso (%)</label>
+                    <input id="edProg" type="number" min="0" max="100" value="${t.progress||0}" style="width:100%">
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn" id="saveEdTask">Salvar Alterações</button>
+                </div>
+            `);
+            
+            document.getElementById('saveEdTask').onclick = () => {
+                // 1. Atualiza a Tarefa
+                t.title = document.getElementById('edTitle').value;
+                t.deadline = document.getElementById('edDate').value;
+                t.estimate = document.getElementById('edEst').value;
+                t.responsible = document.getElementById('edResp').value;
+                t.priority = document.getElementById('edPrio').value;
+                t.type = document.getElementById('edType').value;
+                t.progress = parseInt(document.getElementById('edProg').value) || 0;
+                
+                // 2. Sincroniza com a Agenda (usa o ID da tarefa)
+                if(t.deadline) this.syncToCalendar(t.id, t.title, t.deadline);
+
+                // 3. Atualiza o Card Kanban (se existir)
+                const linkedCard = this.state.cards.find(c => c.originId === t.id);
+                if(linkedCard) {
+                    linkedCard.title = t.title;
+                    linkedCard.deadline = t.deadline;
+                    linkedCard.estimate = t.estimate;
+                    linkedCard.progress = t.progress;
+                    // Atualiza a descrição com Responsável e Tipo
+                    linkedCard.desc = `Resp: ${t.responsible||'-'} | Tipo: ${t.type||'-'}`;
+                    this.toast('Card Kanban associado atualizado.', 'info');
+                }
+                
+                // 4. Salva e Renderiza
+                this.saveState(); 
+                this.closeModal(); 
+                renderList(); // Rerenderiza a lista de tarefas
+                
+                // Se o Kanban estiver aberto, ele também é atualizado
+                if(this.currentTab === 'kanban') this.render_kanban(document.getElementById('kanban-content'));
+            };
+        };
+
         renderList();
     },
 
-    // 3. KANBAN (Multi-Board)
-    render_kanban(root) {
+    // 3. KANBAN ATUALIZADO
+        render_kanban(root) {
         if(!this.currentBoardId && this.state.boards.length > 0) this.currentBoardId = this.state.boards[0].id;
         
         root.innerHTML = `
             <div class="grid" style="height:100%; grid-template-rows: auto 1fr; gap:16px; display:flex; flex-direction:column">
-                <div class="col-12 card" style="display:flex; justify-content:space-between; align-items:center; padding:12px 20px">
-                    <div style="display:flex; gap:12px; align-items:center">
-                        <i class="ph ph-projector-screen" style="font-size:20px; color:var(--primary)"></i>
-                        <select id="boardSelect" style="width:200px; background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:6px 12px; border-radius:8px; color:white">
-                            ${this.state.boards.map(b => `<option value="${b.id}" ${b.id===this.currentBoardId?'selected':''}>${b.title}</option>`).join('')}
-                        </select>
-                        <button class="btn ghost" onclick="app.createBoard()">+ Novo Board</button>
+                <div class="col-12 card kanban-header-container" style="display:flex; justify-content:space-between; align-items:center; padding:12px 20px">
+                    
+                    <div class="kanban-header-controls" style="display:flex; gap:12px; align-items:center; flex:1">
+                        <div style="display:flex; align-items:center; gap:10px; flex:1">
+                            <i class="ph ph-projector-screen" style="font-size:20px; color:var(--primary)"></i>
+                            <select id="boardSelect" style="flex:1; max-width:200px; background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:6px 12px; border-radius:8px; color:white">
+                                ${this.state.boards.map(b => `<option value="${b.id}" ${b.id===this.currentBoardId?'selected':''}>${b.title}</option>`).join('')}
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <button class="btn danger ghost" style="padding:6px 10px" onclick="app.deleteBoard()"><i class="ph ph-trash"></i> Excluir Board</button>
+
+                    <div class="kanban-header-actions" style="display:flex; gap:10px; margin-left:10px">
+                         <button class="btn ghost" onclick="app.createBoard()">+ Novo</button>
+                         <button class="btn danger ghost" style="padding:6px 10px" onclick="app.deleteBoard()"><i class="ph ph-trash"></i></button>
                     </div>
                 </div>
+                
                 <div id="kanbanArea" class="kanban-board" style="flex:1"></div>
             </div>
         `;
@@ -639,12 +1430,36 @@ const app = {
                         <span class="muted">${this.state.cards.filter(x => x.col === c.id && x.boardId === this.currentBoardId).length}</span>
                     </div>
                     <div style="flex:1; overflow-y:auto; padding-right:4px;">
-                        ${this.state.cards.filter(x => x.col === c.id && x.boardId === this.currentBoardId).map(card => `
+                        ${this.state.cards.filter(x => x.col === c.id && x.boardId === this.currentBoardId).map(card => {
+                            // Visualização de Prazo no Card
+                            let deadlineHtml = '';
+                            if(card.deadline) {
+                                const today = new Date().setHours(0,0,0,0);
+                                const dDate = new Date(card.deadline).setHours(0,0,0,0);
+                                const diff = (dDate - today) / (1000 * 60 * 60 * 24);
+                                let dColor = '#94a3b8';
+                                if(diff < 0) dColor = '#ef4444';
+                                else if(diff <= 3) dColor = '#f59e0b';
+                                deadlineHtml = `<span style="color:${dColor}; font-size:11px; display:flex; align-items:center; gap:4px"><i class="ph ph-clock"></i> ${new Date(card.deadline).toLocaleDateString('pt-BR').slice(0,5)}</span>`;
+                            }
+
+                            return `
                             <div class="kanban-card" draggable="true" ondragstart="app.dragCard(event, '${card.id}')" onclick="app.openCardDetails('${card.id}')">
-                                <div style="font-weight:600; margin-bottom:4px; font-size:14px">${card.title}</div>
-                                ${card.desc ? `<div class="muted" style="font-size:12px; line-height:1.4">${card.desc.substring(0,60)}${card.desc.length>60?'...':''}</div>` : ''}
+                                <div style="display:flex; justify-content:space-between; margin-bottom:4px">
+                                    <div style="font-weight:600; font-size:14px">${card.title}</div>
+                                    ${deadlineHtml}
+                                </div>
+                                ${card.desc ? `<div class="muted" style="font-size:12px; line-height:1.4; margin-bottom:8px">${card.desc.substring(0,50)}${card.desc.length>50?'...':''}</div>` : ''}
+                                
+                                <div style="display:flex; align-items:center; gap:8px; margin-top:8px">
+                                    <div style="flex:1; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden">
+                                        <div style="width:${card.progress||0}%; height:100%; background:${c.color};"></div>
+                                    </div>
+                                    <span style="font-size:10px; color:${c.color}">${card.progress||0}%</span>
+                                </div>
+                                ${card.estimate ? `<div class="muted" style="font-size:10px; margin-top:4px">Est: ${card.estimate}</div>` : ''}
                             </div>
-                        `).join('')}
+                        `}).join('')}
                     </div>
                     <button class="btn ghost" style="width:100%; margin-top:8px; border-style:dashed" onclick="app.addCardPrompt('${c.id}')">+ Adicionar</button>
                 </div>
@@ -662,14 +1477,12 @@ const app = {
 
         this.deleteBoard = () => {
             if(this.state.boards.length <= 1) return this.toast("Você precisa de pelo menos um board.", "error");
-            
             const currentBoardTitle = this.state.boards.find(b => b.id === this.currentBoardId)?.title || 'Este Board';
-
             this.confirmModal(`Excluir o board "${currentBoardTitle}" e **todos** os seus cards?`, () => {
                 this.state.cards = this.state.cards.filter(c => c.boardId !== this.currentBoardId);
+                // Limpa eventos da agenda ligados a estes cards
+                // (Opcional: implementação mais complexa removeria eventos, mas deixaremos simplificado)
                 this.state.boards = this.state.boards.filter(b => b.id !== this.currentBoardId);
-                
-                // Mude para o primeiro board restante
                 this.currentBoardId = this.state.boards[0].id;
                 this.saveState(); 
                 this.toast(`Board "${currentBoardTitle}" excluído.`, 'info');
@@ -681,12 +1494,16 @@ const app = {
         this.dropCard = (ev, colId) => {
             const id = ev.dataTransfer.getData('cardId');
             const card = this.state.cards.find(x=>x.id===id);
-            if(card && card.col !== colId) { card.col = colId; this.saveState(); renderBoard(); }
+            if(card && card.col !== colId) { 
+                card.col = colId; 
+                if(colId === 'done') card.progress = 100; // Auto 100% se for para Done
+                this.saveState(); renderBoard(); 
+            }
         };
         
         this.addCardPrompt = (col) => {
             this.promptModal('Novo Card', 'Título da tarefa', (val) => {
-                this.state.cards.push({ id: this.uid(), boardId: this.currentBoardId, col, title: val, desc: '' });
+                this.state.cards.push({ id: this.uid(), boardId: this.currentBoardId, col, title: val, desc: '', progress: 0 });
                 this.saveState(); renderBoard();
             });
         };
@@ -694,18 +1511,32 @@ const app = {
         this.openCardDetails = (id) => {
             const card = this.state.cards.find(c => c.id === id);
             if(!card) return;
+            
             this.openModal(`
                 <h3>Editar Card: ${card.title}</h3>
                 <label class="muted">Título</label>
-                <input id="cTitle" value="${card.title}" style="margin-bottom:16px">
+                <input id="cTitle" value="${card.title}" style="margin-bottom:12px">
+                
+                <div style="display:flex; gap:12px; margin-bottom:12px">
+                    <div style="flex:1"><label class="muted">Prazo</label><input id="cDead" type="date" value="${card.deadline||''}"></div>
+                    <div style="flex:1"><label class="muted">Progresso (%)</label><input id="cProg" type="number" min="0" max="100" value="${card.progress||0}"></div>
+                </div>
+
+                <div style="display:flex; gap:12px; margin-bottom:12px">
+                    <div style="flex:1"><label class="muted">Estimativa</label><input id="cEst" value="${card.estimate||''}"></div>
+                    <div style="flex:1">
+                        <label class="muted">Coluna</label>
+                        <select id="cCol">
+                            <option value="todo" ${card.col==='todo'?'selected':''}>A Fazer</option>
+                            <option value="doing" ${card.col==='doing'?'selected':''}>Em Progresso</option>
+                            <option value="done" ${card.col==='done'?'selected':''}>Concluído</option>
+                        </select>
+                    </div>
+                </div>
+
                 <label class="muted">Descrição</label>
                 <textarea id="cDesc" style="height:100px; margin-bottom:16px">${card.desc||''}</textarea>
-                <label class="muted">Mover para</label>
-                <select id="cCol" style="margin-bottom:24px">
-                    <option value="todo" ${card.col==='todo'?'selected':''}>A Fazer</option>
-                    <option value="doing" ${card.col==='doing'?'selected':''}>Em Progresso</option>
-                    <option value="done" ${card.col==='done'?'selected':''}>Concluído</option>
-                </select>
+                
                 <div class="modal-actions">
                     <button class="btn danger" id="delCardBtn">Excluir Card</button>
                     <button class="btn" id="saveCardBtn">Salvar Alterações</button>
@@ -716,12 +1547,44 @@ const app = {
                 card.title = document.getElementById('cTitle').value;
                 card.desc = document.getElementById('cDesc').value;
                 card.col = document.getElementById('cCol').value;
+                card.deadline = document.getElementById('cDead').value;
+                card.estimate = document.getElementById('cEst').value;
+                card.progress = document.getElementById('cProg').value;
+                if(card.col === 'done') card.progress = 100;
+
+                // --- CORREÇÃO DA DUPLICIDADE ---
+                // Se o card veio de uma tarefa (tem originId), usamos o ID da tarefa para syncar.
+                // Se não, usamos o ID do próprio card.
+                const calendarRefId = card.originId || card.id;
+                
+                this.syncToCalendar(calendarRefId, card.title, card.deadline);
+
                 this.saveState(); this.closeModal(); renderBoard();
             };
+            
             document.getElementById('delCardBtn').onclick = () => {
                 this.confirmModal('Tem certeza que deseja excluir este card?', () => {
                     this.state.cards = this.state.cards.filter(x=>x.id !== id);
-                    this.saveState(); this.closeModal(); renderBoard();
+                    // --- CORREÇÃO DE DESTRAVAMENTO (Sincronização Reversa) ---
+                    // Verifica se o card tinha uma tarefa de origem e a destrava
+                    if(card.originId) {
+                        const originalTask = this.state.tasks.find(t => t.id === card.originId);
+                        if(originalTask) {
+                            originalTask.inKanban = false; // Destrava o botão na Tarefa original
+                            this.toast(`Tarefa "${originalTask.title}" destravada para envio.`, 'info');
+                        }
+                        this.syncToCalendar(card.originId, null, null); // Remove o evento da agenda (usa o ID da tarefa)
+                    } else {
+                        // Se for um card criado diretamente no Kanban, remove o próprio evento
+                        this.syncToCalendar(card.id, null, null);
+                    }
+                    
+                    this.saveState(); 
+                    this.closeModal(); 
+                    renderBoard();
+                    
+                    // Atualiza a lista de tarefas para refletir o botão destravado
+                    if(this.currentTab === 'tasks') this.render_tasks(document.getElementById('tasks-content'));
                 });
             };
         };
@@ -729,7 +1592,7 @@ const app = {
         renderBoard();
     },
 
-    // 4. CALENDAR (Navegação + Edição + Categorias)
+    // 4. CALENDAR
     render_calendar(root) {
         const draw = () => {
             const year = this.calendarCursor.getFullYear();
@@ -841,8 +1704,27 @@ const app = {
         draw();
     },
 
-    // 5. NOTES (Restaurado)
+    // 5. NOTES
+    // 6. NOTES (Atualizado com seleção de cor na edição)
     render_notes(root) {
+        const NOTE_COLORS = {
+            'default': { bg: '#1e293b', text: '#f8fafc' }, // Fundo Escuro
+            'white': { bg: '#f8fafc', text: '#0f172a' },
+            'yellow': { bg: '#fde68a', text: '#0f172a' },
+            'blue': { bg: '#93c5fd', text: '#0f172a' },
+            'green': { bg: '#6ee7b7', text: '#0f172a' },
+            'pink': { bg: '#fbcfe8', text: '#0f172a' }
+        };
+
+        let currentId = null;
+
+        const colorOptions = (selectedColor) => {
+            return Object.keys(NOTE_COLORS).map(key => 
+                `<option value="${key}" style="background-color: ${NOTE_COLORS[key].bg}; color: ${key === 'default' ? 'white' : 'black'};" ${key === selectedColor ? 'selected' : ''}>${key.charAt(0).toUpperCase() + key.slice(1)}</option>`
+            ).join('');
+        };
+
+        // Layout Principal (Adicionado id="noteBodyContainer" e o seletor de cor)
         root.innerHTML = `
             <div class="grid" style="height:calc(100vh - 140px)">
                 <div class="col-4">
@@ -852,27 +1734,46 @@ const app = {
                     </div>
                 </div>
                 <div class="col-8">
-                    <div class="card" style="height:100%; display:flex; flex-direction:column">
+                    <div class="card" id="noteBodyContainer" style="height:100%; display:flex; flex-direction:column; background-color: ${NOTE_COLORS.default.bg}; color: ${NOTE_COLORS.default.text};">
                         <div style="display:flex; gap:10px; margin-bottom:12px">
-                            <input id="noteTitle" placeholder="Título da Nota" style="background:transparent; border:none; border-bottom:1px solid var(--border); font-size:18px; font-weight:700;">
+                            <input id="noteTitle" placeholder="Título da Nota" style="flex:1; background:transparent; border:none; border-bottom:1px solid var(--border); font-size:18px; font-weight:700; color:inherit;">
+                            
+                            <select id="noteColor" style="width:120px; background:transparent; border:1px solid var(--border); color:inherit; padding: 4px 8px; border-radius:6px; font-weight:500;">
+                                ${colorOptions('default')}
+                            </select>
+
                             <button class="btn danger ghost" id="delNoteBtn" title="Excluir Nota" style="display:none"><i class="ph ph-trash"></i></button>
                         </div>
-                        <textarea id="noteBody" style="flex:1; background:transparent; border:none; resize:none; font-family:'Inter'; line-height:1.6; font-size:15px" placeholder="Escreva suas ideias..."></textarea>
+                        
+                        <textarea id="noteBody" style="flex:1; background:transparent; border:none; resize:none; font-family:'Inter'; line-height:1.6; font-size:15px; color:inherit;" placeholder="Escreva suas ideias..."></textarea>
                         <div style="text-align:right; margin-top:10px"><button class="btn" onclick="app.saveCurrentNote()">Salvar Nota</button></div>
                     </div>
                 </div>
             </div>
         `;
         
-        let currentId = null;
+        // Adiciona listener de mudança de cor
+        document.getElementById('noteColor').onchange = (e) => {
+            const selectedKey = e.target.value;
+            const container = document.getElementById('noteBodyContainer');
+            const color = NOTE_COLORS[selectedKey];
+            container.style.backgroundColor = color.bg;
+            container.style.color = color.text;
+            document.getElementById('noteTitle').style.color = color.text;
+            document.getElementById('noteBody').style.color = color.text;
+            // Força o border-bottom do título a ser visível em fundos claros
+            document.getElementById('noteTitle').style.borderBottom = `1px solid ${color.text === '#0f172a' ? 'rgba(0,0,0,0.1)' : 'var(--border)'}`;
+        };
 
         const renderList = () => {
             const list = document.getElementById('notesList');
             if(this.state.notes.length === 0) { list.innerHTML = '<div class="muted text-center">Nenhuma nota</div>'; return; }
+            this.state.notes.sort((a, b) => new Date(b.updated) - new Date(a.updated)); // Ordena pela mais recente
+            
             list.innerHTML = this.state.notes.map(n => `
-                <div onclick="app.loadNote('${n.id}')" style="padding:12px; border-radius:8px; background:rgba(255,255,255,0.03); cursor:pointer; border:1px solid ${currentId===n.id?'var(--primary)':'transparent'}; transition:all 0.2s">
+                <div onclick="app.loadNote('${n.id}')" style="padding:12px; border-radius:8px; background-color:${NOTE_COLORS[n.color]?.bg || NOTE_COLORS.default.bg}; color: ${NOTE_COLORS[n.color]?.text || NOTE_COLORS.default.text}; cursor:pointer; border:1px solid ${currentId===n.id?'var(--primary)':'transparent'}; transition:all 0.2s">
                     <div style="font-weight:600; font-size:14px">${n.title || 'Sem título'}</div>
-                    <div class="muted" style="font-size:11px; margin-top:4px">${new Date(n.updated).toLocaleDateString()}</div>
+                    <div style="font-size:11px; margin-top:4px; opacity:0.7">${new Date(n.updated).toLocaleDateString()}</div>
                 </div>
             `).join('');
         };
@@ -882,6 +1783,9 @@ const app = {
             document.getElementById('noteTitle').value = '';
             document.getElementById('noteBody').value = '';
             document.getElementById('delNoteBtn').style.display = 'none';
+            // Reseta a cor para o padrão "default"
+            document.getElementById('noteColor').value = 'default';
+            document.getElementById('noteColor').dispatchEvent(new Event('change')); // Força o refresh da cor
             renderList();
         };
 
@@ -891,26 +1795,35 @@ const app = {
             document.getElementById('noteTitle').value = n.title;
             document.getElementById('noteBody').value = n.body;
             document.getElementById('delNoteBtn').style.display = 'block';
+            
+            // Carrega e aplica a cor
+            document.getElementById('noteColor').value = n.color || 'default';
+            document.getElementById('noteColor').dispatchEvent(new Event('change'));
+
             renderList();
         };
 
         this.saveCurrentNote = () => {
             const title = document.getElementById('noteTitle').value;
             const body = document.getElementById('noteBody').value;
+            const color = document.getElementById('noteColor').value; // Salva a cor
             if(!title && !body) return;
+            
+            let noteData = { title, body, updated: new Date(), color };
             
             if(!currentId) {
                 currentId = this.uid();
-                this.state.notes.unshift({ id:currentId, title, body, updated: new Date() });
+                this.state.notes.unshift({ id:currentId, ...noteData });
             } else {
                 const n = this.state.notes.find(x=>x.id===currentId);
-                n.title = title; n.body = body; n.updated = new Date();
+                Object.assign(n, noteData);
+                // Reordena: remove e insere no topo
                 this.state.notes = this.state.notes.filter(x=>x.id!==currentId);
                 this.state.notes.unshift(n);
             }
             this.saveState();
             renderList();
-            this.loadNote(currentId);
+            this.loadNote(currentId); // Recarrega para garantir o estado visual
             this.toast('Nota salva!');
         };
 
@@ -924,17 +1837,24 @@ const app = {
             });
         };
 
-        this.newNote();
+        // Garante que uma nota é carregada ou uma nova é criada ao abrir a aba
+        if (this.state.notes.length > 0) {
+            // Se houver notas, carrega a mais recente
+            this.state.notes.sort((a, b) => new Date(b.updated) - new Date(a.updated));
+            this.loadNote(this.state.notes[0].id);
+        } else {
+            this.newNote();
+        }
     },
 
-    // 6. HABITS (Com Tags)
+    // 6. HABITS
     render_habits(root) {
         root.innerHTML = `
             <div class="grid">
                 <div class="col-4 card">
                     <h3>Novo Hábito</h3>
-                    <input id="hName" placeholder="Ex: Testar o Front" style="margin-bottom:8px">
-                    <input id="hTags" placeholder="Tags (ex: Desenvolvimento, Gestão - separadas por vírgula)" style="margin-bottom:12px">
+                    <input id="hName" placeholder="Ex: Academia" style="margin-bottom:8px">
+                    <input id="hTags" placeholder="Tags (ex: saude, treino - separadas por vírgula)" style="margin-bottom:12px">
                     <button class="btn" style="width:100%" onclick="app.addHabit()">Adicionar Hábito</button>
                 </div>
                 <div class="col-8 card" id="hList"></div>
@@ -943,7 +1863,6 @@ const app = {
         this.addHabit = () => {
             const name = document.getElementById('hName').value;
             const tagsStr = document.getElementById('hTags').value;
-            // Transforma string de tags separadas por vírgula em array
             const tags = tagsStr.split(',').map(t=>t.trim().toLowerCase()).filter(Boolean);
 
             if(name) { 
@@ -977,114 +1896,7 @@ const app = {
         renderList();
     },
 
-    // 7. ROADMAP (Cores Fixas)
-    render_roadmap(root) {
-        root.innerHTML = `<div class="grid"><div class="col-12 card"><div style="display:flex;justify-content:space-between;margin-bottom:20px"><h3>Roadmap</h3><button class="btn ghost" onclick="app.addRoadmapItem()">+ Item</button></div><div id="roadList" style="position:relative;padding-left:20px;border-left:2px solid var(--border)"></div></div></div>`;
-        const statuses = { 
-            'planned': { color: '#94a3b8', label: 'Planejado' },   // Cinza (Claro)
-            'active': { color: '#3b82f6', label: 'Em Andamento' }, // Azul (Primário)
-            'completed': { color: '#10b981', label: 'Concluído' }  // Verde (Distinto)
-        };
-        this.addRoadmapItem = () => {
-            this.promptModal('Roadmap', 'O que será feito?', (val)=>{
-                this.state.roadmap.push({ id:this.uid(), title: val, date: new Date().toISOString().slice(0,10), status: 'planned' });
-                this.saveState(); this.render_roadmap(root);
-            });
-        };
-        document.getElementById('roadList').innerHTML = this.state.roadmap.map(r => `
-            <div style="margin-bottom:24px; position:relative;">
-                <div style="position:absolute; left:-29px; top:0; width:16px; height:16px; background:${statuses[r.status].color}; border-radius:50%; border:3px solid var(--bg-dark); box-shadow:0 0 10px ${statuses[r.status].color}66"></div>
-                <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center">
-                    <div>
-                        <div style="font-weight:600">${r.title}</div>
-                        <div style="color:${statuses[r.status].color}; font-size:11px; margin-top:4px; font-weight:700; text-transform:uppercase">${statuses[r.status].label}</div>
-                    </div>
-                    <div style="display:flex; gap:8px">
-                        <button class="btn ghost" style="font-size:11px" onclick="app.toggleRoadStatus('${r.id}')">Alterar Status</button>
-                        <button class="btn danger ghost" style="padding:4px 8px" onclick="app.delRoad('${r.id}')"><i class="ph ph-trash"></i></button>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-        this.toggleRoadStatus = (id) => { const item = this.state.roadmap.find(x=>x.id===id); const cycle = ['planned', 'active', 'completed']; item.status = cycle[(cycle.indexOf(item.status) + 1) % cycle.length]; this.saveState(); this.render_roadmap(root); };
-        this.delRoad = (id) => { this.confirmModal('Remover item do roadmap?', ()=>{ this.state.roadmap = this.state.roadmap.filter(x=>x.id!==id); this.saveState(); this.render_roadmap(root); }); };
-    },
-    
-    // 8. BOOKMARKS (Restaurado)
-    render_bookmarks(root) {
-        root.innerHTML = `
-            <div class="grid">
-                <div class="col-12 card">
-                    <div style="display:flex; gap:10px; margin-bottom:20px">
-                        <input id="bmUrl" placeholder="URL (https://...)" style="flex:1">
-                        <input id="bmTitle" placeholder="Título" style="flex:1">
-                        <button class="btn" onclick="app.addBookmark()">Salvar</button>
-                    </div>
-                    <div class="grid" id="bmGrid"></div>
-                </div>
-            </div>
-        `;
-        const render = () => {
-            document.getElementById('bmGrid').innerHTML = this.state.bookmarks.map(b => `
-                <div class="col-4" style="background:rgba(255,255,255,0.05); padding:16px; border-radius:8px; display:flex; align-items:center; gap:10px">
-                    <img src="https://www.google.com/s2/favicons?domain=${b.url}&sz=32" width="24" height="24" style="border-radius:4px">
-                    <div style="flex:1; overflow:hidden">
-                        <a href="${b.url}" target="_blank" style="color:white; text-decoration:none; display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; font-weight:600">${b.title}</a>
-                        <small class="muted">${b.url.substring(0,30)}...</small>
-                    </div>
-                    <button class="btn ghost danger" onclick="app.delBookmark('${b.id}')"><i class="ph ph-trash"></i></button>
-                </div>
-            `).join('');
-        };
-        this.addBookmark = () => {
-            let url = document.getElementById('bmUrl').value;
-            const title = document.getElementById('bmTitle').value;
-            if(!url) return;
-            if(!url.startsWith('http')) url = 'https://' + url;
-            this.state.bookmarks.push({id:this.uid(), url, title: title || url });
-            this.saveState(); render();
-        };
-        this.delBookmark = (id) => { this.confirmModal('Remover favorito?', ()=>{ this.state.bookmarks = this.state.bookmarks.filter(x=>x.id!==id); this.saveState(); render(); }); };
-        render();
-    },
-
-    // 9. SNIPPETS (Restaurado)
-    render_snippets(root) {
-        root.innerHTML = `
-            <div class="grid">
-                <div class="col-4 card">
-                    <h3>Novo Snippet</h3>
-                    <input id="snipTitle" placeholder="Nome (ex: Fetch API)" style="margin-bottom:8px">
-                    <select id="snipLang" style="margin-bottom:8px"><option>JavaScript</option><option>CSS</option><option>HTML</option><option>SQL</option><option>Python</option></select>
-                    <textarea id="snipCode" style="height:150px; margin-bottom:12px; font-family:monospace" placeholder="Código..."></textarea>
-                    <button class="btn" onclick="app.addSnippet()">Salvar</button>
-                </div>
-                <div class="col-8" id="snipList" style="display:flex; flex-direction:column; gap:16px"></div>
-            </div>
-        `;
-        const render = () => {
-            document.getElementById('snipList').innerHTML = this.state.snippets.map(s => `
-                <div class="card">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:8px">
-                        <strong>${s.title} <span class="muted">(${s.lang})</span></strong>
-                        <button class="btn ghost danger" style="padding:2px 8px" onclick="app.delSnippet('${s.id}')">X</button>
-                    </div>
-                    <pre style="background:#0f172a; padding:12px; border-radius:6px; overflow-x:auto; font-family:monospace; color:#cbd5e1">${s.code.replace(/</g,'&lt;')}</pre>
-                    <button class="btn ghost" style="margin-top:8px; font-size:11px" onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(s.code)}')); app.toast('Copiado!')">Copiar</button>
-                </div>
-            `).join('');
-        };
-        this.addSnippet = () => {
-            const title = document.getElementById('snipTitle').value;
-            const code = document.getElementById('snipCode').value;
-            const lang = document.getElementById('snipLang').value;
-            if(title && code) { this.state.snippets.unshift({ id:this.uid(), title, code, lang }); this.saveState(); render(); }
-        };
-        this.delSnippet = (id) => { this.confirmModal('Apagar snippet?', ()=>{ this.state.snippets = this.state.snippets.filter(x=>x.id!==id); this.saveState(); render(); }); };
-        render();
-    },
-
-    // 10. POMODORO (Restaurado)
+    // 7. POMODORO
     render_pomodoro(root) {
         root.innerHTML = `
             <div class="grid" style="text-align:center; height:100%; align-items:center">
@@ -1129,7 +1941,164 @@ const app = {
         };
     },
 
-    // 11. VAULT (Restaurado)
+    // 8. SNIPPETS
+    render_snippets(root) {
+        root.innerHTML = `
+            <div class="grid">
+                <div class="col-4 card">
+                    <h3>Novo Snippet</h3>
+                    <input id="snipTitle" placeholder="Nome (ex: Fetch API)" style="margin-bottom:8px">
+                    <select id="snipLang" style="margin-bottom:8px"><option>JavaScript</option><option>CSS</option><option>HTML</option><option>SQL</option><option>Python</option></select>
+                    <textarea id="snipCode" style="height:150px; margin-bottom:12px; font-family:monospace" placeholder="Código..."></textarea>
+                    <button class="btn" onclick="app.addSnippet()">Salvar</button>
+                </div>
+                <div class="col-8" id="snipList" style="display:flex; flex-direction:column; gap:16px"></div>
+            </div>
+        `;
+        const render = () => {
+            document.getElementById('snipList').innerHTML = this.state.snippets.map(s => `
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px">
+                        <strong>${s.title} <span class="muted">(${s.lang})</span></strong>
+                        <button class="btn ghost danger" style="padding:2px 8px" onclick="app.delSnippet('${s.id}')">X</button>
+                    </div>
+                    <pre style="background:#0f172a; padding:12px; border-radius:6px; overflow-x:auto; font-family:monospace; color:#cbd5e1">${s.code.replace(/</g,'&lt;')}</pre>
+                    <button class="btn ghost" style="margin-top:8px; font-size:11px" onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(s.code)}')); app.toast('Copiado!')">Copiar</button>
+                </div>
+            `).join('');
+        };
+        this.addSnippet = () => {
+            const title = document.getElementById('snipTitle').value;
+            const code = document.getElementById('snipCode').value;
+            const lang = document.getElementById('snipLang').value;
+            if(title && code) { this.state.snippets.unshift({ id:this.uid(), title, code, lang }); this.saveState(); render(); }
+        };
+        this.delSnippet = (id) => { this.confirmModal('Apagar snippet?', ()=>{ this.state.snippets = this.state.snippets.filter(x=>x.id!==id); this.saveState(); render(); }); };
+        render();
+    },
+
+    // 9. BOOKMARKS
+    render_bookmarks(root) {
+        root.innerHTML = `
+            <div class="grid">
+                <div class="col-12 card">
+                    <div style="display:flex; gap:10px; margin-bottom:20px">
+                        <input id="bmUrl" placeholder="URL (https://...)" style="flex:1">
+                        <input id="bmTitle" placeholder="Título" style="flex:1">
+                        <button class="btn" onclick="app.addBookmark()">Salvar</button>
+                    </div>
+                    <div class="grid" id="bmGrid"></div>
+                </div>
+            </div>
+        `;
+        const render = () => {
+            document.getElementById('bmGrid').innerHTML = this.state.bookmarks.map(b => `
+                <div class="col-4" style="background:rgba(255,255,255,0.05); padding:16px; border-radius:8px; display:flex; align-items:center; gap:10px">
+                    <img src="https://www.google.com/s2/favicons?domain=${b.url}&sz=32" width="24" height="24" style="border-radius:4px">
+                    <div style="flex:1; overflow:hidden">
+                        <a href="${b.url}" target="_blank" style="color:white; text-decoration:none; display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; font-weight:600">${b.title}</a>
+                        <small class="muted">${b.url.substring(0,30)}...</small>
+                    </div>
+                    <button class="btn ghost danger" onclick="app.delBookmark('${b.id}')"><i class="ph ph-trash"></i></button>
+                </div>
+            `).join('');
+        };
+        this.addBookmark = () => {
+            let url = document.getElementById('bmUrl').value;
+            const title = document.getElementById('bmTitle').value;
+            if(!url) return;
+            if(!url.startsWith('http')) url = 'https://' + url;
+            this.state.bookmarks.push({id:this.uid(), url, title: title || url });
+            this.saveState(); render();
+        };
+        this.delBookmark = (id) => { this.confirmModal('Remover favorito?', ()=>{ this.state.bookmarks = this.state.bookmarks.filter(x=>x.id!==id); this.saveState(); render(); }); };
+        render();
+    },
+
+// 10. ROADMAP (Atualizado com controle de ordenação)
+    render_roadmap(root) {
+        root.innerHTML = `<div class="grid"><div class="col-12 card"><div style="display:flex;justify-content:space-between;margin-bottom:20px"><h3>Roadmap</h3><button class="btn ghost" onclick="app.addRoadmapItem()">+ Item</button></div><div id="roadList" style="position:relative;padding-left:20px;border-left:2px solid var(--border)"></div></div></div>`;
+        
+        const statuses = { 
+            'planned': { color: '#94a3b8', label: 'Planejado' },  
+            'active': { color: '#3b82f6', label: 'Em Andamento' }, 
+            'completed': { color: '#10b981', label: 'Concluído' }  
+        };
+        
+        this.addRoadmapItem = () => {
+            this.promptModal('Roadmap', 'O que será feito?', (val)=>{
+                // Novo item é adicionado ao fim por padrão
+                this.state.roadmap.push({ id:this.uid(), title: val, date: new Date().toISOString().slice(0,10), status: 'planned' });
+                this.saveState(); this.render_roadmap(root);
+            });
+        };
+        
+        // --- NOVO: LÓGICA DE MOVER ITEM ---
+        this.moveRoadmapItem = (id, direction) => {
+            const list = this.state.roadmap;
+            const index = list.findIndex(item => item.id === id);
+
+            if (index === -1) return; 
+
+            let newIndex;
+            if (direction === 'up') {
+                newIndex = index - 1;
+            } else if (direction === 'down') {
+                newIndex = index + 1;
+            } else {
+                return;
+            }
+
+            // Impede mover além dos limites do array
+            if (newIndex < 0 || newIndex >= list.length) {
+                return;
+            }
+
+            // Realiza a troca (swap) usando destructuring
+            [list[index], list[newIndex]] = [list[newIndex], list[index]];
+
+            this.saveState();
+            this.render_roadmap(root);
+        };
+        // ------------------------------------
+
+        document.getElementById('roadList').innerHTML = this.state.roadmap.map(r => `
+            <div style="margin-bottom:24px; position:relative;">
+                <div style="position:absolute; left:-29px; top:0; width:16px; height:16px; background:${statuses[r.status].color}; border-radius:50%; border:3px solid var(--bg-dark); box-shadow:0 0 10px ${statuses[r.status].color}66"></div>
+                <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center">
+                    <div>
+                        <div style="font-weight:600">${r.title}</div>
+                        <div style="color:${statuses[r.status].color}; font-size:11px; margin-top:4px; font-weight:700; text-transform:uppercase">${statuses[r.status].label}</div>
+                    </div>
+                    <div style="display:flex; gap:8px">
+                        <button class="btn ghost" style="padding:4px 8px" onclick="app.moveRoadmapItem('${r.id}', 'up')" title="Mover para Cima"><i class="ph ph-arrow-up"></i></button>
+                        <button class="btn ghost" style="padding:4px 8px" onclick="app.moveRoadmapItem('${r.id}', 'down')" title="Mover para Baixo"><i class="ph ph-arrow-down"></i></button>
+                        
+                        <button class="btn ghost" style="font-size:11px" onclick="app.toggleRoadStatus('${r.id}')">Alterar Status</button>
+                        <button class="btn danger ghost" style="padding:4px 8px" onclick="app.delRoad('${r.id}')"><i class="ph ph-trash"></i></button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        this.toggleRoadStatus = (id) => { 
+            const item = this.state.roadmap.find(x=>x.id===id); 
+            const cycle = ['planned', 'active', 'completed']; 
+            item.status = cycle[(cycle.indexOf(item.status) + 1) % cycle.length]; 
+            this.saveState(); 
+            this.render_roadmap(root); 
+        };
+        
+        this.delRoad = (id) => { 
+            this.confirmModal('Remover item do roadmap?', ()=>{ 
+                this.state.roadmap = this.state.roadmap.filter(x=>x.id!==id); 
+                this.saveState(); 
+                this.render_roadmap(root); 
+            }); 
+        };
+    },
+
+    // 11. VAULT
     render_vault(root) {
         root.innerHTML = `<div class="grid"><div class="col-12 card"><div style="border:2px dashed var(--border); padding:32px; text-align:center; border-radius:12px; cursor:pointer" onclick="document.getElementById('pdfUp').click()"><i class="ph ph-file-pdf" style="font-size:48px; color:var(--text-muted)"></i><p>Adicionar PDF (Max 500KB)</p><input type="file" id="pdfUp" accept="application/pdf" hidden onchange="app.uploadPdf(this)"></div></div><div class="col-12 grid" id="pdfGrid"></div></div>`;
         this.uploadPdf = (input) => {
