@@ -518,6 +518,11 @@ const VIEWS = {
 
 const DEFAULT_STATE = {
     tasks: [],
+    kanbanCols: [
+        {id:'todo', label:'A Fazer', color:'#6366f1'},
+        {id:'doing', label:'Em Progresso', color:'#fbbf24'},
+        {id:'done', label:'Concluído', color:'#34d399'}
+    ],
     boards: [], 
     cards: [],
     events: [],
@@ -1259,12 +1264,23 @@ const app = {
         };
         
         this.delTask = (id) => {
-            this.confirmModal('Excluir tarefa?', () => {
-                this.state.tasks = this.state.tasks.filter(x=>x.id!==id);
-                this.syncToCalendar(id, null, null); // Remove da agenda
-                this.saveState(); renderList();
-            });
-        };
+            this.confirmModal('Excluir tarefa?', () => {
+                // 1. Remove a tarefa principal
+                this.state.tasks = this.state.tasks.filter(x=>x.id!==id);
+                
+                // 2. CORREÇÃO: Remove o Card Kanban associado que possui o 'originId' desta tarefa
+                this.state.cards = this.state.cards.filter(c => c.originId !== id);
+
+                // 3. Remove da agenda
+                this.syncToCalendar(id, null, null); 
+                
+                // 4. Salva e re-renderiza
+                this.saveState(); renderList();
+                
+                // Opcional: Força a atualização do Kanban se estiver na aba
+                if(this.currentTab === 'kanban') this.render_kanban(document.getElementById('kanban-content'));
+            });
+        };
 
         this.copyToKanban = (id) => {
             const t = this.state.tasks.find(x=>x.id===id);
@@ -1380,217 +1396,268 @@ const app = {
         renderList();
     },
 
-    // 3. KANBAN ATUALIZADO
-        render_kanban(root) {
-        if(!this.currentBoardId && this.state.boards.length > 0) this.currentBoardId = this.state.boards[0].id;
-        
-        root.innerHTML = `
-            <div class="grid" style="height:100%; grid-template-rows: auto 1fr; gap:16px; display:flex; flex-direction:column">
-                <div class="col-12 card kanban-header-container" style="display:flex; justify-content:space-between; align-items:center; padding:12px 20px">
-                    
-                    <div class="kanban-header-controls" style="display:flex; gap:12px; align-items:center; flex:1">
-                        <div style="display:flex; align-items:center; gap:10px; flex:1">
-                            <i class="ph ph-projector-screen" style="font-size:20px; color:var(--primary)"></i>
-                            <select id="boardSelect" style="flex:1; max-width:200px; background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:6px 12px; border-radius:8px; color:white">
-                                ${this.state.boards.map(b => `<option value="${b.id}" ${b.id===this.currentBoardId?'selected':''}>${b.title}</option>`).join('')}
-                            </select>
-                        </div>
-                    </div>
+   // 3. KANBAN (Sprints e Colunas Dinâmicas)
+render_kanban(root) {
+    if(!this.state.boards) this.state.boards = [{ id: this.uid(), title: 'Meu Primeiro Board' }];
+    if(!this.currentBoardId || !this.state.boards.find(b => b.id === this.currentBoardId)) {
+        if(this.state.boards.length > 0) this.currentBoardId = this.state.boards[0].id;
+        else this.currentBoardId = null;
+    }
+    
+    // Inicialização/Migração de Colunas Dinâmicas
+    if(!this.state.kanbanCols || this.state.kanbanCols.length === 0) {
+        this.state.kanbanCols = [
+            {id:'todo', label:'A Fazer', color:'#6366f1'},
+            {id:'doing', label:'Em Progresso', color:'#fbbf24'},
+            {id:'done', label:'Concluído', color:'#34d399'}
+        ];
+    }
 
-                    <div class="kanban-header-actions" style="display:flex; gap:10px; margin-left:10px">
-                         <button class="btn ghost" onclick="app.createBoard()">+ Novo</button>
-                         <button class="btn danger ghost" style="padding:6px 10px" onclick="app.deleteBoard()"><i class="ph ph-trash"></i></button>
-                    </div>
-                </div>
+    root.innerHTML = `
+        <div class="grid" style="height:100%; grid-template-rows: auto 1fr; gap:16px; display:flex; flex-direction:column">
+            <div class="col-12 card kanban-header-container" style="display:flex; justify-content:space-between; align-items:center; padding:12px 20px">
                 
-                <div id="kanbanArea" class="kanban-board" style="flex:1"></div>
-            </div>
-        `;
-
-        document.getElementById('boardSelect').onchange = (e) => {
-            this.currentBoardId = e.target.value;
-            this.saveState();
-            this.render_kanban(root);
-        };
-
-        const renderBoard = () => {
-            const cols = [
-                {id:'todo', label:'A Fazer', color:'#6366f1'}, 
-                {id:'doing', label:'Em Progresso', color:'#fbbf24'}, 
-                {id:'done', label:'Concluído', color:'#34d399'}
-            ];
-            
-            const area = document.getElementById('kanbanArea');
-            if(!this.currentBoardId) { area.innerHTML = '<div class="muted" style="width:100%; text-align:center; padding:50px">Crie um board para começar</div>'; return; }
-
-            area.innerHTML = cols.map(c => `
-                <div class="kanban-col" ondragover="event.preventDefault()" ondrop="app.dropCard(event, '${c.id}')">
-                    <div style="margin-bottom:12px; display:flex; justify-content:space-between; color:${c.color}; font-weight:700">
-                        <span>${c.label}</span>
-                        <span class="muted">${this.state.cards.filter(x => x.col === c.id && x.boardId === this.currentBoardId).length}</span>
-                    </div>
-                    <div style="flex:1; overflow-y:auto; padding-right:4px;">
-                        ${this.state.cards.filter(x => x.col === c.id && x.boardId === this.currentBoardId).map(card => {
-                            // Visualização de Prazo no Card
-                            let deadlineHtml = '';
-                            if(card.deadline) {
-                                const today = new Date().setHours(0,0,0,0);
-                                const dDate = new Date(card.deadline).setHours(0,0,0,0);
-                                const diff = (dDate - today) / (1000 * 60 * 60 * 24);
-                                let dColor = '#94a3b8';
-                                if(diff < 0) dColor = '#ef4444';
-                                else if(diff <= 3) dColor = '#f59e0b';
-                                deadlineHtml = `<span style="color:${dColor}; font-size:11px; display:flex; align-items:center; gap:4px"><i class="ph ph-clock"></i> ${new Date(card.deadline).toLocaleDateString('pt-BR').slice(0,5)}</span>`;
-                            }
-
-                            return `
-                            <div class="kanban-card" draggable="true" ondragstart="app.dragCard(event, '${card.id}')" onclick="app.openCardDetails('${card.id}')">
-                                <div style="display:flex; justify-content:space-between; margin-bottom:4px">
-                                    <div style="font-weight:600; font-size:14px">${card.title}</div>
-                                    ${deadlineHtml}
-                                </div>
-                                ${card.desc ? `<div class="muted" style="font-size:12px; line-height:1.4; margin-bottom:8px">${card.desc.substring(0,50)}${card.desc.length>50?'...':''}</div>` : ''}
-                                
-                                <div style="display:flex; align-items:center; gap:8px; margin-top:8px">
-                                    <div style="flex:1; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden">
-                                        <div style="width:${card.progress||0}%; height:100%; background:${c.color};"></div>
-                                    </div>
-                                    <span style="font-size:10px; color:${c.color}">${card.progress||0}%</span>
-                                </div>
-                                ${card.estimate ? `<div class="muted" style="font-size:10px; margin-top:4px">Est: ${card.estimate}</div>` : ''}
-                            </div>
-                        `}).join('')}
-                    </div>
-                    <button class="btn ghost" style="width:100%; margin-top:8px; border-style:dashed" onclick="app.addCardPrompt('${c.id}')">+ Adicionar</button>
-                </div>
-            `).join('');
-        };
-        
-        this.createBoard = () => {
-            this.promptModal('Novo Projeto', 'Nome do Board', (name) => {
-                const id = this.uid();
-                this.state.boards.push({ id, title: name });
-                this.currentBoardId = id;
-                this.saveState(); this.render_kanban(root);
-            });
-        };
-
-        this.deleteBoard = () => {
-            if(this.state.boards.length <= 1) return this.toast("Você precisa de pelo menos um board.", "error");
-            const currentBoardTitle = this.state.boards.find(b => b.id === this.currentBoardId)?.title || 'Este Board';
-            this.confirmModal(`Excluir o board "${currentBoardTitle}" e **todos** os seus cards?`, () => {
-                this.state.cards = this.state.cards.filter(c => c.boardId !== this.currentBoardId);
-                // Limpa eventos da agenda ligados a estes cards
-                // (Opcional: implementação mais complexa removeria eventos, mas deixaremos simplificado)
-                this.state.boards = this.state.boards.filter(b => b.id !== this.currentBoardId);
-                this.currentBoardId = this.state.boards[0].id;
-                this.saveState(); 
-                this.toast(`Board "${currentBoardTitle}" excluído.`, 'info');
-                this.render_kanban(root);
-            });
-        };
-
-        this.dragCard = (ev, id) => ev.dataTransfer.setData('cardId', id);
-        this.dropCard = (ev, colId) => {
-            const id = ev.dataTransfer.getData('cardId');
-            const card = this.state.cards.find(x=>x.id===id);
-            if(card && card.col !== colId) { 
-                card.col = colId; 
-                if(colId === 'done') card.progress = 100; // Auto 100% se for para Done
-                this.saveState(); renderBoard(); 
-            }
-        };
-        
-        this.addCardPrompt = (col) => {
-            this.promptModal('Novo Card', 'Título da tarefa', (val) => {
-                this.state.cards.push({ id: this.uid(), boardId: this.currentBoardId, col, title: val, desc: '', progress: 0 });
-                this.saveState(); renderBoard();
-            });
-        };
-
-        this.openCardDetails = (id) => {
-            const card = this.state.cards.find(c => c.id === id);
-            if(!card) return;
-            
-            this.openModal(`
-                <h3>Editar Card: ${card.title}</h3>
-                <label class="muted">Título</label>
-                <input id="cTitle" value="${card.title}" style="margin-bottom:12px">
-                
-                <div style="display:flex; gap:12px; margin-bottom:12px">
-                    <div style="flex:1"><label class="muted">Prazo</label><input id="cDead" type="date" value="${card.deadline||''}"></div>
-                    <div style="flex:1"><label class="muted">Progresso (%)</label><input id="cProg" type="number" min="0" max="100" value="${card.progress||0}"></div>
-                </div>
-
-                <div style="display:flex; gap:12px; margin-bottom:12px">
-                    <div style="flex:1"><label class="muted">Estimativa</label><input id="cEst" value="${card.estimate||''}"></div>
-                    <div style="flex:1">
-                        <label class="muted">Coluna</label>
-                        <select id="cCol">
-                            <option value="todo" ${card.col==='todo'?'selected':''}>A Fazer</option>
-                            <option value="doing" ${card.col==='doing'?'selected':''}>Em Progresso</option>
-                            <option value="done" ${card.col==='done'?'selected':''}>Concluído</option>
+                <div class="kanban-header-controls" style="display:flex; gap:12px; align-items:center; flex:1">
+                    <div style="display:flex; align-items:center; gap:10px; flex:1">
+                        <i class="ph ph-projector-screen" style="font-size:20px; color:var(--primary)"></i>
+                        <select id="boardSelect" style="flex:1; max-width:200px; background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:6px 12px; border-radius:8px; color:white">
+                            ${this.state.boards.map(b => `<option value="${b.id}" ${b.id===this.currentBoardId?'selected':''}>${b.title}</option>`).join('')}
                         </select>
                     </div>
                 </div>
 
-                <label class="muted">Descrição</label>
-                <textarea id="cDesc" style="height:100px; margin-bottom:16px">${card.desc||''}</textarea>
-                
-                <div class="modal-actions">
-                    <button class="btn danger" id="delCardBtn">Excluir Card</button>
-                    <button class="btn" id="saveCardBtn">Salvar Alterações</button>
+                <div class="kanban-header-actions" style="display:flex; gap:10px; margin-left:10px">
+                    <button class="btn ghost" onclick="app.addColumnPrompt()">+ Coluna</button>
+                    <button class="btn ghost" onclick="app.createBoard()">+ Novo Board</button>
+                    <button class="btn danger ghost" style="padding:6px 10px" onclick="app.deleteBoard()"><i class="ph ph-trash"></i></button>
                 </div>
-            `);
+            </div>
             
-            document.getElementById('saveCardBtn').onclick = () => {
-                card.title = document.getElementById('cTitle').value;
-                card.desc = document.getElementById('cDesc').value;
-                card.col = document.getElementById('cCol').value;
-                card.deadline = document.getElementById('cDead').value;
-                card.estimate = document.getElementById('cEst').value;
-                card.progress = document.getElementById('cProg').value;
-                if(card.col === 'done') card.progress = 100;
+            <div id="kanbanArea" class="kanban-board" style="flex:1; gap: 16px;"></div>
+        </div>
+    `;
 
-                // --- CORREÇÃO DA DUPLICIDADE ---
-                // Se o card veio de uma tarefa (tem originId), usamos o ID da tarefa para syncar.
-                // Se não, usamos o ID do próprio card.
-                const calendarRefId = card.originId || card.id;
+    document.getElementById('boardSelect').onchange = (e) => {
+        this.currentBoardId = e.target.value;
+        this.saveState();
+        this.render_kanban(root);
+    };
+
+    // --- FUNÇÕES DE COLUNA (NOVAS) ---
+    this.addColumnPrompt = () => {
+        this.promptModal('Nova Coluna', 'Nome (ex: Review, Backlog)', (val) => {
+            const colors = ['#6366f1', '#a855f7', '#ec4899', '#ef4444', '#f59e0b', '#10b981', '#3b82f6'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            this.state.kanbanCols.push({ id: this.uid(), label: val, color: randomColor });
+            this.saveState(); this.render_kanban(root);
+        });
+    };
+
+    this.editColumn = (colId) => {
+        const col = this.state.kanbanCols.find(c => c.id === colId);
+        this.promptModal('Renomear Coluna', 'Novo nome', (val) => {
+            col.label = val;
+            this.saveState(); this.render_kanban(root);
+        }, col.label);
+    };
+
+    this.deleteColumn = (colId) => {
+        if(this.state.kanbanCols.length <= 1) return this.toast("Mínimo 1 coluna necessária", "error");
+        
+        this.confirmModal('Excluir esta coluna? Os cards serão movidos para a primeira coluna.', () => {
+            // Remove a coluna
+            this.state.kanbanCols = this.state.kanbanCols.filter(c => c.id !== colId);
+            
+            // Move cards órfãos para a primeira coluna disponível
+            const targetCol = this.state.kanbanCols[0].id;
+            this.state.cards.forEach(card => {
+                if(card.col === colId) card.col = targetCol;
+            });
+
+            this.saveState();
+            this.render_kanban(root);
+        });
+    };
+    // ---------------------------------
+
+    const renderBoard = () => {
+        const cols = this.state.kanbanCols; // Usa colunas dinâmicas
+        const area = document.getElementById('kanbanArea');
+        
+        if(!this.currentBoardId) { area.innerHTML = '<div class="muted" style="width:100%; text-align:center; padding:50px">Crie um board para começar</div>'; return; }
+
+        area.innerHTML = cols.map(c => `
+            <div class="kanban-col" ondragover="event.preventDefault()" ondrop="app.dropCard(event, '${c.id}')" style="min-width:300px">
+                <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid ${c.color}; padding-bottom:8px;">
+                    <div style="font-weight:700; color:var(--text-main)">${c.label} <span class="muted" style="font-size:12px; margin-left:5px">(${this.state.cards.filter(x => x.col === c.id && x.boardId === this.currentBoardId).length})</span></div>
+                    <div style="display:flex; gap:4px">
+                        <button class="btn ghost" style="padding:4px;" onclick="app.editColumn('${c.id}')" title="Renomear"><i class="ph ph-pencil-simple"></i></button>
+                        <button class="btn ghost danger" style="padding:4px;" onclick="app.deleteColumn('${c.id}')" title="Excluir"><i class="ph ph-trash"></i></button>
+                    </div>
+                </div>
                 
-                this.syncToCalendar(calendarRefId, card.title, card.deadline);
-
-                this.saveState(); this.closeModal(); renderBoard();
-            };
-            
-            document.getElementById('delCardBtn').onclick = () => {
-                this.confirmModal('Tem certeza que deseja excluir este card?', () => {
-                    this.state.cards = this.state.cards.filter(x=>x.id !== id);
-                    // --- CORREÇÃO DE DESTRAVAMENTO (Sincronização Reversa) ---
-                    // Verifica se o card tinha uma tarefa de origem e a destrava
-                    if(card.originId) {
-                        const originalTask = this.state.tasks.find(t => t.id === card.originId);
-                        if(originalTask) {
-                            originalTask.inKanban = false; // Destrava o botão na Tarefa original
-                            this.toast(`Tarefa "${originalTask.title}" destravada para envio.`, 'info');
+                <div style="flex:1; overflow-y:auto; padding-right:4px; display:flex; flex-direction:column; gap:10px;">
+                    ${this.state.cards.filter(x => x.col === c.id && x.boardId === this.currentBoardId).map(card => {
+                        let deadlineHtml = '';
+                        if(card.deadline) {
+                            const diff = Math.ceil((new Date(card.deadline) - new Date()) / (1000 * 60 * 60 * 24));
+                            let dColor = diff < 0 ? '#ef4444' : (diff <= 3 ? '#f59e0b' : '#94a3b8');
+                            deadlineHtml = `<span style="color:${dColor}; font-size:11px; display:flex; align-items:center; gap:4px"><i class="ph ph-clock"></i> ${new Date(card.deadline).toLocaleDateString('pt-BR').slice(0,5)}</span>`;
                         }
-                        this.syncToCalendar(card.originId, null, null); // Remove o evento da agenda (usa o ID da tarefa)
-                    } else {
-                        // Se for um card criado diretamente no Kanban, remove o próprio evento
-                        this.syncToCalendar(card.id, null, null);
-                    }
-                    
-                    this.saveState(); 
-                    this.closeModal(); 
-                    renderBoard();
-                    
-                    // Atualiza a lista de tarefas para refletir o botão destravado
-                    if(this.currentTab === 'tasks') this.render_tasks(document.getElementById('tasks-content'));
-                });
-            };
-        };
 
-        renderBoard();
-    },
+                        return `
+                        <div class="kanban-card" draggable="true" ondragstart="app.dragCard(event, '${card.id}')" onclick="app.openCardDetails('${card.id}')">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:6px">
+                                <div style="font-weight:600; font-size:14px; line-height:1.3">${card.title}</div>
+                                ${deadlineHtml}
+                            </div>
+                            ${card.desc ? `<div class="muted" style="font-size:12px; line-height:1.4; margin-bottom:8px">${card.desc.substring(0,50)}${card.desc.length>50?'...':''}</div>` : ''}
+                            
+                            <div style="display:flex; align-items:center; gap:8px; margin-top:8px">
+                                <div style="flex:1; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden">
+                                    <div style="width:${card.progress||0}%; height:100%; background:${c.color};"></div>
+                                </div>
+                            </div>
+                            
+                            <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:10px; color:var(--text-muted)">
+                                <span>${card.estimate ? 'Est: ' + card.estimate : ''}</span>
+                                <span>${card.progress||0}%</span>
+                            </div>
+                        </div>
+                    `}).join('')}
+                </div>
+                <button class="btn ghost" style="width:100%; margin-top:8px; border-style:dashed; opacity:0.6" onclick="app.addCardPrompt('${c.id}')">+ Card</button>
+            </div>
+        `).join('');
+    };
+    
+    // --- FUNÇÕES DE BOARD E CARD (ADAPTADAS) ---
+
+    this.createBoard = () => {
+        this.promptModal('Novo Projeto', 'Nome do Board', (name) => {
+            const id = this.uid();
+            this.state.boards.push({ id, title: name });
+            this.currentBoardId = id;
+            this.saveState(); this.render_kanban(root);
+        });
+    };
+
+    this.deleteBoard = () => {
+        if(this.state.boards.length <= 1) return this.toast("Você precisa de pelo menos um board.", "error");
+        const currentBoardTitle = this.state.boards.find(b => b.id === this.currentBoardId)?.title || 'Este Board';
+        this.confirmModal(`Excluir o board "${currentBoardTitle}" e **todos** os seus cards?`, () => {
+            this.state.cards = this.state.cards.filter(c => c.boardId !== this.currentBoardId);
+            this.state.boards = this.state.boards.filter(b => b.id !== this.currentBoardId);
+            this.currentBoardId = this.state.boards[0].id;
+            this.saveState(); 
+            this.toast(`Board "${currentBoardTitle}" excluído.`, 'info');
+            this.render_kanban(root);
+        });
+    };
+
+    this.dragCard = (ev, id) => ev.dataTransfer.setData('cardId', id);
+
+    this.dropCard = (ev, colId) => {
+        const id = ev.dataTransfer.getData('cardId');
+        const card = this.state.cards.find(x=>x.id===id);
+        const lastColId = this.state.kanbanCols[this.state.kanbanCols.length-1].id; // Pega o ID da última coluna
+        
+        if(card && card.col !== colId) { 
+            card.col = colId; 
+            if(colId === 'done' || colId === lastColId) card.progress = 100; // Auto 100% se for para Done ou última coluna
+            this.saveState(); renderBoard(); 
+        }
+    };
+    
+    this.addCardPrompt = (col) => {
+        this.promptModal('Novo Card', 'Título da tarefa', (val) => {
+            this.state.cards.push({ id: this.uid(), boardId: this.currentBoardId, col, title: val, desc: '', progress: 0 });
+            this.saveState(); renderBoard();
+        });
+    };
+
+    this.openCardDetails = (id) => {
+        const card = this.state.cards.find(c => c.id === id);
+        if(!card) return;
+        
+        // Geração do <select> dinâmica com base em this.state.kanbanCols
+        const colOptions = this.state.kanbanCols.map(c => 
+            `<option value="${c.id}" ${card.col===c.id?'selected':''}>${c.label}</option>`
+        ).join('');
+        
+        this.openModal(`
+            <h3>Editar Card: ${card.title}</h3>
+            <label class="muted">Título</label>
+            <input id="cTitle" value="${card.title}" style="margin-bottom:12px">
+            
+            <div style="display:flex; gap:12px; margin-bottom:12px">
+                <div style="flex:1"><label class="muted">Prazo</label><input id="cDead" type="date" value="${card.deadline||''}"></div>
+                <div style="flex:1"><label class="muted">Progresso (%)</label><input id="cProg" type="number" min="0" max="100" value="${card.progress||0}"></div>
+            </div>
+
+            <div style="display:flex; gap:12px; margin-bottom:12px">
+                <div style="flex:1"><label class="muted">Estimativa</label><input id="cEst" value="${card.estimate||''}"></div>
+                <div style="flex:1">
+                    <label class="muted">Coluna</label>
+                    <select id="cCol">${colOptions}</select> </div>
+            </div>
+
+            <label class="muted">Descrição</label>
+            <textarea id="cDesc" style="height:100px; margin-bottom:16px">${card.desc||''}</textarea>
+            
+            <div class="modal-actions">
+                <button class="btn danger" id="delCardBtn">Excluir Card</button>
+                <button class="btn" id="saveCardBtn">Salvar Alterações</button>
+            </div>
+        `);
+        
+        document.getElementById('saveCardBtn').onclick = () => {
+            card.title = document.getElementById('cTitle').value;
+            card.desc = document.getElementById('cDesc').value;
+            card.col = document.getElementById('cCol').value;
+            card.deadline = document.getElementById('cDead').value;
+            card.estimate = document.getElementById('cEst').value;
+            card.progress = parseInt(document.getElementById('cProg').value) || 0;
+            
+            // Auto 100% se for para a última coluna
+            const lastColId = this.state.kanbanCols[this.state.kanbanCols.length-1].id;
+            if(card.col === lastColId) card.progress = 100;
+
+            const calendarRefId = card.originId || card.id;
+            this.syncToCalendar(calendarRefId, card.title, card.deadline);
+
+            this.saveState(); this.closeModal(); renderBoard();
+            // Também tenta re-renderizar a agenda se for a aba ativa
+            if(this.currentTab === 'calendar') this.render_calendar(document.getElementById('calendar-content'));
+        };
+        
+        document.getElementById('delCardBtn').onclick = () => {
+            this.confirmModal('Tem certeza que deseja excluir este card?', () => {
+                this.state.cards = this.state.cards.filter(x=>x.id !== id);
+                
+                if(card.originId) {
+                    const originalTask = this.state.tasks.find(t => t.id === card.originId);
+                    if(originalTask) {
+                        originalTask.inKanban = false; 
+                        this.toast(`Tarefa "${originalTask.title}" destravada para envio.`, 'info');
+                    }
+                    this.syncToCalendar(card.originId, null, null);
+                } else {
+                    this.syncToCalendar(card.id, null, null);
+                }
+                
+                this.saveState(); 
+                this.closeModal(); 
+                renderBoard();
+                
+                if(this.currentTab === 'tasks') this.render_tasks(document.getElementById('tasks-content'));
+                if(this.currentTab === 'calendar') this.render_calendar(document.getElementById('calendar-content'));
+            });
+        };
+    };
+
+    renderBoard();
+},
 
     // 4. CALENDAR
     render_calendar(root) {
@@ -1704,148 +1771,188 @@ const app = {
         draw();
     },
 
-    // 5. NOTES
-    // 6. NOTES (Atualizado com seleção de cor na edição)
-    render_notes(root) {
-        const NOTE_COLORS = {
-            'default': { bg: '#1e293b', text: '#f8fafc' }, // Fundo Escuro
-            'white': { bg: '#f8fafc', text: '#0f172a' },
-            'yellow': { bg: '#fde68a', text: '#0f172a' },
-            'blue': { bg: '#93c5fd', text: '#0f172a' },
-            'green': { bg: '#6ee7b7', text: '#0f172a' },
-            'pink': { bg: '#fbcfe8', text: '#0f172a' }
-        };
+// 5. NOTES (Com Busca e Empty State)
+render_notes(root) {
+    const NOTE_COLORS = {
+        'default': { bg: '#1e293b', text: '#f8fafc' },
+        'white': { bg: '#f8fafc', text: '#0f172a' },
+        'yellow': { bg: '#fde68a', text: '#0f172a' },
+        'blue': { bg: '#93c5fd', text: '#0f172a' },
+        'green': { bg: '#6ee7b7', text: '#0f172a' },
+        'pink': { bg: '#fbcfe8', text: '#0f172a' }
+    };
 
-        let currentId = null;
+    let currentId = null;
+    if(!this.noteSearch) this.noteSearch = "";
 
-        const colorOptions = (selectedColor) => {
-            return Object.keys(NOTE_COLORS).map(key => 
-                `<option value="${key}" style="background-color: ${NOTE_COLORS[key].bg}; color: ${key === 'default' ? 'white' : 'black'};" ${key === selectedColor ? 'selected' : ''}>${key.charAt(0).toUpperCase() + key.slice(1)}</option>`
-            ).join('');
-        };
+    const colorOptions = (selectedColor) => {
+        return Object.keys(NOTE_COLORS).map(key => 
+            `<option value="${key}" style="background-color: ${NOTE_COLORS[key].bg}; color: ${key === 'default' ? 'white' : 'black'};" ${key === selectedColor ? 'selected' : ''}>${key.charAt(0).toUpperCase() + key.slice(1)}</option>`
+        ).join('');
+    };
 
-        // Layout Principal (Adicionado id="noteBodyContainer" e o seletor de cor)
-        root.innerHTML = `
-            <div class="grid" style="height:calc(100vh - 140px)">
-                <div class="col-4">
-                    <div class="card" style="height:100%; display:flex; flex-direction:column">
-                        <button class="btn" style="width:100%; margin-bottom:12px" onclick="app.newNote()">+ Nova Nota</button>
-                        <div id="notesList" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px"></div>
+    // Ordena notas por atualização
+    this.state.notes.sort((a, b) => new Date(b.updated) - new Date(a.updated));
+    const hasNotes = this.state.notes.length > 0;
+
+    root.innerHTML = `
+        <div class="grid" style="height:calc(100vh - 140px)">
+            <div class="col-4">
+                <div class="card" style="height:100%; display:flex; flex-direction:column">
+                    <button class="btn" style="width:100%; margin-bottom:12px" onclick="app.newNote()">+ Nova Nota</button>
+                    
+                    <div style="margin-bottom:12px; position:relative;">
+                        <input id="noteSearchInput" placeholder="Buscar notas..." value="${this.noteSearch}" style="padding-left:32px;">
+                        <i class="ph ph-magnifying-glass" style="position:absolute; left:10px; top:10px; color:var(--text-muted)"></i>
                     </div>
-                </div>
-                <div class="col-8">
-                    <div class="card" id="noteBodyContainer" style="height:100%; display:flex; flex-direction:column; background-color: ${NOTE_COLORS.default.bg}; color: ${NOTE_COLORS.default.text};">
-                        <div style="display:flex; gap:10px; margin-bottom:12px">
-                            <input id="noteTitle" placeholder="Título da Nota" style="flex:1; background:transparent; border:none; border-bottom:1px solid var(--border); font-size:18px; font-weight:700; color:inherit;">
-                            
-                            <select id="noteColor" style="width:120px; background:transparent; border:1px solid var(--border); color:inherit; padding: 4px 8px; border-radius:6px; font-weight:500;">
-                                ${colorOptions('default')}
-                            </select>
 
-                            <button class="btn danger ghost" id="delNoteBtn" title="Excluir Nota" style="display:none"><i class="ph ph-trash"></i></button>
-                        </div>
-                        
-                        <textarea id="noteBody" style="flex:1; background:transparent; border:none; resize:none; font-family:'Inter'; line-height:1.6; font-size:15px; color:inherit;" placeholder="Escreva suas ideias..."></textarea>
-                        <div style="text-align:right; margin-top:10px"><button class="btn" onclick="app.saveCurrentNote()">Salvar Nota</button></div>
-                    </div>
+                    <div id="notesList" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px"></div>
                 </div>
             </div>
-        `;
-        
-        // Adiciona listener de mudança de cor
-        document.getElementById('noteColor').onchange = (e) => {
-            const selectedKey = e.target.value;
-            const container = document.getElementById('noteBodyContainer');
-            const color = NOTE_COLORS[selectedKey];
-            container.style.backgroundColor = color.bg;
-            container.style.color = color.text;
-            document.getElementById('noteTitle').style.color = color.text;
-            document.getElementById('noteBody').style.color = color.text;
-            // Força o border-bottom do título a ser visível em fundos claros
-            document.getElementById('noteTitle').style.borderBottom = `1px solid ${color.text === '#0f172a' ? 'rgba(0,0,0,0.1)' : 'var(--border)'}`;
-        };
 
-        const renderList = () => {
-            const list = document.getElementById('notesList');
-            if(this.state.notes.length === 0) { list.innerHTML = '<div class="muted text-center">Nenhuma nota</div>'; return; }
-            this.state.notes.sort((a, b) => new Date(b.updated) - new Date(a.updated)); // Ordena pela mais recente
-            
-            list.innerHTML = this.state.notes.map(n => `
-                <div onclick="app.loadNote('${n.id}')" style="padding:12px; border-radius:8px; background-color:${NOTE_COLORS[n.color]?.bg || NOTE_COLORS.default.bg}; color: ${NOTE_COLORS[n.color]?.text || NOTE_COLORS.default.text}; cursor:pointer; border:1px solid ${currentId===n.id?'var(--primary)':'transparent'}; transition:all 0.2s">
-                    <div style="font-weight:600; font-size:14px">${n.title || 'Sem título'}</div>
-                    <div style="font-size:11px; margin-top:4px; opacity:0.7">${new Date(n.updated).toLocaleDateString()}</div>
+            <div class="col-8" id="rightPane">
+                
+                <div id="emptyState" style="height:100%; display:${hasNotes ? 'none' : 'flex'}; flex-direction:column; align-items:center; justify-content:center; opacity:0.5; border: 2px dashed var(--border); border-radius:var(--radius);">
+                    <i class="ph ph-notebook" style="font-size:64px; margin-bottom:16px; color:var(--text-muted);"></i>
+                    <div style="font-size:18px; font-weight:600;">Nenhuma nota selecionada</div>
+                    <div class="muted">Crie uma nova nota ou selecione ao lado.</div>
                 </div>
-            `).join('');
-        };
 
-        this.newNote = () => {
-            currentId = null;
-            document.getElementById('noteTitle').value = '';
-            document.getElementById('noteBody').value = '';
-            document.getElementById('delNoteBtn').style.display = 'none';
-            // Reseta a cor para o padrão "default"
-            document.getElementById('noteColor').value = 'default';
-            document.getElementById('noteColor').dispatchEvent(new Event('change')); // Força o refresh da cor
-            renderList();
-        };
+                <div class="card" id="noteBodyContainer" style="height:100%; display:${hasNotes ? 'flex' : 'none'}; flex-direction:column; background-color: ${NOTE_COLORS.default.bg}; color: ${NOTE_COLORS.default.text}; transition: background-color 0.3s;">
+                    <div style="display:flex; gap:10px; margin-bottom:12px">
+                        <input id="noteTitle" placeholder="Título da Nota" style="flex:1; background:transparent; border:none; border-bottom:1px solid var(--border); font-size:18px; font-weight:700; color:inherit;">
+                        <select id="noteColor" style="width:120px; background:transparent; border:1px solid var(--border); color:inherit; padding: 4px 8px; border-radius:6px; font-weight:500;">
+                            ${colorOptions('default')}
+                        </select>
+                        <button class="btn danger ghost" id="delNoteBtn" title="Excluir Nota" style="display:none"><i class="ph ph-trash"></i></button>
+                    </div>
+                    <textarea id="noteBody" style="flex:1; background:transparent; border:none; resize:none; font-family:'Inter'; line-height:1.6; font-size:15px; color:inherit;" placeholder="Escreva suas ideias..."></textarea>
+                    <div style="text-align:right; margin-top:10px"><button class="btn" onclick="app.saveCurrentNote()">Salvar Nota</button></div>
+                </div>
 
-        this.loadNote = (id) => {
-            currentId = id;
-            const n = this.state.notes.find(x=>x.id===id);
-            document.getElementById('noteTitle').value = n.title;
-            document.getElementById('noteBody').value = n.body;
-            document.getElementById('delNoteBtn').style.display = 'block';
-            
-            // Carrega e aplica a cor
-            document.getElementById('noteColor').value = n.color || 'default';
-            document.getElementById('noteColor').dispatchEvent(new Event('change'));
+            </div>
+        </div>
+    `;
 
-            renderList();
-        };
+    // --- Lógica e Funções ---
 
-        this.saveCurrentNote = () => {
-            const title = document.getElementById('noteTitle').value;
-            const body = document.getElementById('noteBody').value;
-            const color = document.getElementById('noteColor').value; // Salva a cor
-            if(!title && !body) return;
-            
-            let noteData = { title, body, updated: new Date(), color };
-            
-            if(!currentId) {
-                currentId = this.uid();
-                this.state.notes.unshift({ id:currentId, ...noteData });
-            } else {
-                const n = this.state.notes.find(x=>x.id===currentId);
-                Object.assign(n, noteData);
-                // Reordena: remove e insere no topo
-                this.state.notes = this.state.notes.filter(x=>x.id!==currentId);
-                this.state.notes.unshift(n);
-            }
-            this.saveState();
-            renderList();
-            this.loadNote(currentId); // Recarrega para garantir o estado visual
-            this.toast('Nota salva!');
-        };
+    document.getElementById('noteSearchInput').onkeyup = (e) => {
+        this.noteSearch = e.target.value.toLowerCase();
+        renderList();
+    };
 
-        document.getElementById('delNoteBtn').onclick = () => {
-            if(!currentId) return;
-            this.confirmModal('Excluir esta nota permanentemente?', () => {
-                this.state.notes = this.state.notes.filter(x=>x.id !== currentId);
-                this.saveState();
-                this.newNote();
-                this.toast('Nota excluída.');
-            });
-        };
+    // Função interna para alternar visibilidade do editor
+    const toggleEditor = (show) => {
+        document.getElementById('emptyState').style.display = show ? 'none' : 'flex';
+        document.getElementById('noteBodyContainer').style.display = show ? 'flex' : 'none';
+    };
 
-        // Garante que uma nota é carregada ou uma nova é criada ao abrir a aba
-        if (this.state.notes.length > 0) {
-            // Se houver notas, carrega a mais recente
-            this.state.notes.sort((a, b) => new Date(b.updated) - new Date(a.updated));
-            this.loadNote(this.state.notes[0].id);
+    document.getElementById('noteColor').onchange = (e) => {
+        const selectedKey = e.target.value;
+        const container = document.getElementById('noteBodyContainer');
+        const color = NOTE_COLORS[selectedKey];
+        container.style.backgroundColor = color.bg;
+        container.style.color = color.text;
+        document.getElementById('noteTitle').style.color = color.text;
+        document.getElementById('noteBody').style.color = color.text;
+        document.getElementById('noteTitle').style.borderBottom = `1px solid ${color.text === '#0f172a' ? 'rgba(0,0,0,0.1)' : 'var(--border)'}`;
+    };
+
+    const renderList = () => {
+        const list = document.getElementById('notesList');
+        const filtered = this.state.notes.filter(n => 
+            (n.title && n.title.toLowerCase().includes(this.noteSearch)) || 
+            (n.body && n.body.toLowerCase().includes(this.noteSearch))
+        );
+
+        if(filtered.length === 0) { list.innerHTML = '<div class="muted text-center" style="margin-top:20px">Nada encontrado</div>'; return; }
+        
+        list.innerHTML = filtered.map(n => `
+            <div onclick="app.loadNote('${n.id}')" style="padding:12px; border-radius:8px; background-color:${NOTE_COLORS[n.color]?.bg || NOTE_COLORS.default.bg}; color: ${NOTE_COLORS[n.color]?.text || NOTE_COLORS.default.text}; cursor:pointer; border:1px solid ${currentId===n.id?'var(--primary)':'transparent'}; transition:all 0.2s">
+                <div style="font-weight:600; font-size:14px">${n.title || 'Sem título'}</div>
+                <div style="font-size:11px; margin-top:4px; opacity:0.7">${new Date(n.updated).toLocaleDateString()}</div>
+            </div>
+        `).join('');
+    };
+
+    this.newNote = () => {
+        currentId = null;
+        toggleEditor(true); // Força aparecer o editor
+        document.getElementById('noteTitle').value = '';
+        document.getElementById('noteBody').value = '';
+        document.getElementById('delNoteBtn').style.display = 'none';
+        document.getElementById('noteColor').value = 'default';
+        document.getElementById('noteColor').dispatchEvent(new Event('change'));
+        renderList();
+        document.getElementById('noteTitle').focus();
+    };
+
+    this.loadNote = (id) => {
+        currentId = id;
+        const n = this.state.notes.find(x=>x.id===id);
+        if(!n) return;
+        
+        toggleEditor(true); // Garante que o editor apareça
+        document.getElementById('noteTitle').value = n.title;
+        document.getElementById('noteBody').value = n.body;
+        document.getElementById('delNoteBtn').style.display = 'block';
+        document.getElementById('noteColor').value = n.color || 'default';
+        document.getElementById('noteColor').dispatchEvent(new Event('change'));
+        renderList();
+    };
+
+    this.saveCurrentNote = () => {
+        const title = document.getElementById('noteTitle').value;
+        const body = document.getElementById('noteBody').value;
+        const color = document.getElementById('noteColor').value;
+        
+        if(!title && !body) return;
+        
+        let noteData = { title, body, updated: new Date(), color };
+        
+        if(!currentId) {
+            currentId = this.uid();
+            this.state.notes.unshift({ id:currentId, ...noteData });
         } else {
-            this.newNote();
+            const n = this.state.notes.find(x=>x.id===currentId);
+            Object.assign(n, noteData);
+            this.state.notes = this.state.notes.filter(x=>x.id!==currentId);
+            this.state.notes.unshift(n);
         }
-    },
+        this.saveState();
+        renderList();
+        this.loadNote(currentId);
+        this.toast('Nota salva!');
+    };
+
+    document.getElementById('delNoteBtn').onclick = () => {
+        if(!currentId) return;
+        this.confirmModal('Excluir esta nota permanentemente?', () => {
+            this.state.notes = this.state.notes.filter(x=>x.id !== currentId);
+            this.saveState();
+            
+            // Lógica pós-delete:
+            if (this.state.notes.length > 0) {
+                this.loadNote(this.state.notes[0].id); // Carrega a próxima
+            } else {
+                currentId = null;
+                toggleEditor(false); // Esconde editor se acabou tudo
+                renderList();
+            }
+            this.toast('Nota excluída.');
+        });
+    };
+
+    // Inicialização ao abrir a aba
+    renderList();
+    if (hasNotes) {
+        // Se já tem notas, carrega a primeira automaticamente
+        this.loadNote(this.state.notes[0].id);
+    } else {
+        // Se não tem notas, garante o estado vazio
+        toggleEditor(false);
+    }
+},
 
     // 6. HABITS
     render_habits(root) {
@@ -1896,86 +2003,422 @@ const app = {
         renderList();
     },
 
-    // 7. POMODORO
-    render_pomodoro(root) {
-        root.innerHTML = `
-            <div class="grid" style="text-align:center; height:100%; align-items:center">
-                <div class="col-12 card" style="display:flex; flex-direction:column; align-items:center; padding:60px">
-                    <div style="font-size:14px; font-weight:600; color:var(--primary); margin-bottom:10px" id="pomoMode">Pronto para Focar</div>
-                    <div style="width: 220px; height: 220px; border-radius: 50%; border: 6px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 56px; font-weight: 700; background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%); box-shadow: 0 0 40px rgba(99,102,241,0.1); letter-spacing: -2px;" id="pomoDisplay">25:00</div>
-                    <div style="margin-top:40px; display:flex; gap:16px">
-                        <button class="btn" onclick="app.startTimer(25)">Focus (25m)</button>
-                        <button class="btn ghost" onclick="app.startTimer(5, true)">Break (5m)</button>
-                        <button class="btn danger" onclick="app.stopTimer()">Parar</button>
+// --- MÓDULO POMODORO COM INPUT CORRIGIDO E SEM SPINNERS ---
+
+render_pomodoro(root) {
+    // 1. Definição de Assets (Manter Assets)
+    this.pomoAssets = {
+        gifs: {
+            focus: [
+                "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNG1wdndsNjB5b25qZDh4aTltazRiMDhlaTNybWNxNGF2YTJyZWcyNSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/mjTpgz6FGNVDoMg5lx/giphy.gif",
+                "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3bDdmeWJvdTJ0cTVoaWV6dWJmb2pwMjhqdnFtcm0wNml2MmltMHdlaiZlcD12MV9naWZzX3JlbGF0ZWQmY3Q9Zw/KxbHmvL3MGcctzlfdX/giphy.gif",
+                "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3bDdmeWJvdTJ0cTVoaWV6dWJmb2pwMjhqdnFtcm0wNml2MmltMHdlaiZlcD12MV9naWZzX3JlbGF0ZWQmY3Q9Zw/Basrh159dGwKY/giphy.gif",
+                "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3azRiMWZjOGZuaGNiY2k4aGhkaHdkaWE3cTd5MXoyZHh5Y29wZ3F0eiZlcD12MV9naWZzX3JlbGF0ZWQmY3Q9Zw/ckr4W2ppxPBeIF8dx4/giphy.gif",
+
+            ],
+            break: [
+                "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3cWhkMWppNnY1ZzNwdmo0OHhmNmZuMHl6aGJjYnFod2ZqNzhnbjIybiZlcD12MV9naWZzX3JlbGF0ZWQmY3Q9Zw/xWMPYx55WNhX136T0V/giphy.gif",
+                "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3a3FjazM0OHVkb2M2a3NieWpnYmRmM2hjcTQ1Z2k4dG83cXF3ZzF3dyZlcD12MV9naWZzX3JlbGF0ZWQmY3Q9Zw/iF2AMbSYPQ7PKof26V/giphy.gif",
+                "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3bmI5bHNrbXM3eGo0aW01bDFrM2VwOXpia3E4bWI5ZDFhMTEzd3djZSZlcD12MV9naWZzX3JlbGF0ZWQmY3Q9Zw/RMwgs5kZqkRyhF24KK/giphy.gif",
+                "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYm50cTF5MzJieDM3N3QwMGJuNzhmZXZjeHdwZmpoYjR0NXhpeHl0NSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/3oz8xKkuY65HJlC4lq/giphy.gif"
+            ]
+        },
+        sounds: {
+            rain: { url: 'https://assets.mixkit.co/active_storage/sfx/2493/2493-preview.mp3', label: 'Chuva Pesada', icon: 'ph-cloud-rain' },
+            forest: { url: 'https://cdn.pixabay.com/audio/2021/09/06/audio_39447470b8.mp3', label: 'Floresta Noturna', icon: 'ph-tree' },
+            lofi: { url: 'https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3', label: 'Lofi City', icon: 'ph-headphones' },
+            coffee: { url: 'https://assets.mixkit.co/active_storage/sfx/139/139-preview.mp3', label: 'Cafeteria', icon: 'ph-coffee' },
+            keyboard: { url: '', label: 'Teclado Mecânico', icon: 'ph-keyboard' },
+            white: { url: '', label: 'White Noise', icon: 'ph-waves' }
+        }
+    };
+
+    // 2. Inicialização de Estado e Áudio (Manter Inicialização)
+    if (!this.state.pomodoro.history) this.state.pomodoro.history = [];
+    if (!this.state.pomodoro.sounds) this.state.pomodoro.sounds = {};
+    if (!this.pomodoroSounds) {
+        this.pomodoroSounds = {};
+        Object.keys(this.pomoAssets.sounds).forEach(key => {
+            const audio = new Audio(this.pomoAssets.sounds[key].url);
+            audio.loop = true; 
+            audio.volume = 0.5;
+            this.pomodoroSounds[key] = audio;
+        });
+    }
+    if (!this.currentGif) this.currentGif = this.pomoAssets.gifs.focus[0];
+
+    // 3. Renderização HTML com CSS Injetado
+    root.innerHTML = `
+        <style>
+            /* CSS ESPECÍFICO DO MÓDULO POMODORO */
+            .pomo-wrapper { display: flex; flex-wrap: wrap; gap: 24px; height: 100%; align-content: center; overflow-y: auto; }
+            .pomo-section { flex: 1; min-width: 320px; display: flex; flex-direction: column; gap: 20px; }
+            
+            /* Player estilo Watch Dogs */
+            .wd-player { background: rgba(15, 23, 42, 0.9); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.5); height: 100%; }
+            .wd-screen { height: 200px; position: relative; background: black; border-bottom: 2px solid var(--primary); }
+            .wd-screen img { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; }
+            .wd-overlay { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 50%); pointer-events: none; }
+            .wd-playlist { padding: 0; margin: 0; list-style: none; overflow-y: auto; flex: 1; }
+            .wd-track { 
+                padding: 12px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); transition: all 0.2s; 
+                font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: -0.5px;
+            }
+            .wd-track:hover { background: rgba(255,255,255,0.05); padding-left: 20px; }
+            .wd-track.active { background: rgba(99, 102, 241, 0.15); border-left: 3px solid var(--accent); color: var(--accent); font-weight: bold; }
+            .wd-track i { font-size: 18px; width: 24px; text-align: center; }
+
+            /* Custom Input */
+            .time-input-group { 
+                display: flex !important; 
+                align-items: center; justify-content: center; gap: 10px; margin-bottom: 20px; 
+                background: rgba(0,0,0,0.2); padding: 8px 16px; border-radius: 30px; 
+                border: 1px solid var(--border); width: fit-content; margin-left: auto; margin-right: auto; 
+            }
+            .time-input { 
+                background: transparent; border: none; color: var(--text-main); font-size: 18px; font-weight: 700; width: 50px; text-align: center; border-bottom: 2px solid var(--primary); 
+                
+                /* Remove Spinners do input number (CORREÇÃO APLICADA AQUI) */
+                -moz-appearance: textfield; /* Para Firefox */
+            }
+            .time-input::-webkit-outer-spin-button,
+            .time-input::-webkit-inner-spin-button {
+                /* Para Chrome, Safari e Edge */
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            
+            /* Responsividade Mobile */
+            @media (max-width: 768px) {
+                .pomo-wrapper { flex-direction: column; height: auto; padding-bottom: 80px; }
+                .pomo-section { min-width: 100%; }
+                .wd-screen { height: 150px; }
+            }
+        </style>
+
+        <div class="pomo-wrapper">
+            
+            <div class="pomo-section">
+                <div class="card" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px; position:relative; overflow:hidden;">
+                    
+                    <div style="font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--accent); margin-bottom:15px; font-weight:700">Fluxo Profundo</div>
+                    
+                    <div style="position:relative; width:240px; height:240px; margin-bottom:25px;">
+                        <svg width="240" height="240" style="transform: rotate(-90deg);">
+                            <circle cx="120" cy="120" r="110" stroke="rgba(255,255,255,0.05)" stroke-width="6" fill="transparent"/>
+                            <circle id="pomoProgress" cx="120" cy="120" r="110" stroke="url(#grad1)" stroke-width="6" fill="transparent" stroke-dasharray="691" stroke-dashoffset="0" style="transition: stroke-dashoffset 1s linear; stroke-linecap: round;"/>
+                            <defs>
+                                <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column;">
+                            <div id="pomoDisplay" style="font-size:56px; font-weight:700; font-family:monospace; letter-spacing:-2px; line-height:1;">--:--</div>
+                            <div id="pomoMode" class="muted" style="margin-top:5px; font-size:12px">Aguardando</div>
+                        </div>
+                    </div>
+
+                    <div class="time-input-group">
+                        <i class="ph ph-timer" style="color:var(--text-muted)"></i>
+                        <input id="customMinutes" class="time-input" type="number" value="25" min="1" max="120">
+                        <span style="font-size:12px; text-transform:uppercase; font-weight:600; color:var(--text-muted)">Minutos</span>
+                    </div>
+
+                    <button class="btn" style="padding:12px 40px; border-radius:30px; font-size:16px; box-shadow: 0 0 20px rgba(99,102,241,0.3); margin-bottom:20px; width:100%; max-width:260px;" 
+                        onclick="app.startCustomTimer()">
+                        <i class="ph ph-play"></i> INICIAR FOCO
+                    </button>
+                    
+                    <div style="display:flex; gap:8px; justify-content:center; width:100%">
+                        <button class="btn ghost" style="font-size:12px" onclick="app.setInputValue(5); app.startCustomTimer(true)">Pausa Curta</button>
+                        <button class="btn ghost" style="font-size:12px" onclick="app.setInputValue(15); app.startCustomTimer(true)">Pausa Longa</button>
+                        <button class="btn danger ghost" style="font-size:12px" onclick="app.stopTimer()">Parar</button>
+                    </div>
+
+                    <div style="margin-top:20px; padding-top:15px; border-top:1px solid var(--border); display:flex; gap:30px; text-align:center;">
+                        <div>
+                            <div class="muted" style="font-size:10px">SESSÕES</div>
+                            <div style="font-weight:700; font-size:16px">${this.state.pomodoro.history.filter(h => h.date === new Date().toISOString().slice(0, 10)).length}</div>
+                        </div>
+                        <div>
+                            <div class="muted" style="font-size:10px">TEMPO (H)</div>
+                            <div style="font-weight:700; font-size:16px">${(this.state.pomodoro.history.filter(h => h.date === new Date().toISOString().slice(0, 10)).reduce((a, b) => a + (b.duration || 25), 0) / 60).toFixed(1)}</div>
+                        </div>
                     </div>
                 </div>
             </div>
-        `;
-        this.stopTimer = () => { 
-            clearInterval(this.timerInterval); 
-            document.getElementById('pomoDisplay').innerText = "25:00"; 
-            document.getElementById('pomoMode').innerText = "Pronto para Focar";
-            document.title = "FLUXO"; 
-        };
-        this.startTimer = (mins, isBreak = false) => {
-            this.stopTimer();
-            let seconds = mins * 60;
-            const display = document.getElementById('pomoDisplay');
-            const mode = document.getElementById('pomoMode');
-            mode.innerText = isBreak ? "Pausa Curta" : "Foco Profundo";
 
-            this.timerInterval = setInterval(() => {
-                seconds--;
-                const m = Math.floor(seconds / 60);
-                const s = seconds % 60;
-                const txt = `${m}:${s < 10 ? '0'+s : s}`;
-                display.innerText = txt;
-                document.title = `(${txt}) ${mode.innerText}`;
+            <div class="pomo-section">
+                <div class="wd-player">
+                    
+                    <div class="wd-screen">
+                        <img id="pomoGif" src="${this.currentGif}">
+                        <div class="wd-overlay"></div>
+                        <button onclick="app.changeGif(app.pomoIsBreak ? 'break' : 'focus')" class="btn ghost" 
+                            style="position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.7); color:white; padding:4px 8px; border-radius:4px; font-size:10px; border:1px solid rgba(255,255,255,0.2)">
+                            <i class="ph ph-shuffle"></i> CAM
+                        </button>
+                        <div style="position:absolute; bottom:10px; left:15px; color:white; font-family:'Courier New', monospace;">
+                            <div style="font-size:10px; opacity:0.7">VISUALIZER.EXE</div>
+                            <div style="font-weight:bold; font-size:14px; color:var(--primary)">AMBIENTE CONECTADO</div>
+                        </div>
+                    </div>
 
-                if (seconds <= 0) { 
-                    this.stopTimer(); 
-                    this.toast("Tempo esgotado! " + (isBreak ? "Hora de Focar!" : "Hora da Pausa!"), "info"); 
-                    new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play(); 
+                    <div style="padding:10px 15px; background:rgba(0,0,0,0.3); font-size:11px; text-transform:uppercase; color:var(--text-muted); font-weight:700; display:flex; justify-content:space-between;">
+                        <span>Sound Layers</span>
+                        <span><i class="ph ph-faders"></i> Mixer</span>
+                    </div>
+
+                    <ul class="wd-playlist">
+                        ${Object.keys(this.pomoAssets.sounds).map(key => `
+                            <li id="track-${key}" class="wd-track" onclick="app.toggleSound('${key}')">
+                                <i class="ph ${this.pomoAssets.sounds[key].icon}"></i>
+                                <div style="flex:1">${this.pomoAssets.sounds[key].label}</div>
+                                <i class="ph ph-wave-sine" style="opacity: ${this.state.pomodoro.sounds[key] ? '1' : '0.1'}"></i>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Restaura estado visual da playlist
+    this.refreshAudioButtons();
+    if (this.pomoActive) this.updatePomodoroUI();
+},
+
+// --- FUNÇÕES DE CONTROLE DE UI (CUSTOM TIMER) ---
+
+setInputValue(val) {
+    const input = document.getElementById('customMinutes');
+    if(input) input.value = val;
+},
+
+startCustomTimer(isBreak = false) {
+    const input = document.getElementById('customMinutes');
+    let val = 25; // Default seguro
+
+    if (input) {
+        val = parseInt(input.value);
+        if (isNaN(val) || val <= 0) {
+            val = 25; 
+            this.toast("Tempo inválido! Usando 25 minutos.", "warning");
+        }
+    }
+    
+    this.startTimer(val, isBreak);
+},
+
+// --- FUNÇÕES DE CONTROLE DE ÁUDIO/GIF (MANTIDAS) ---
+
+changeGif(type) {
+    if (!this.pomoAssets) return;
+    const list = type === 'break' ? this.pomoAssets.gifs.break : this.pomoAssets.gifs.focus;
+    this.currentGif = list[Math.floor(Math.random() * list.length)];
+    const imgEl = document.getElementById('pomoGif');
+    if(imgEl) imgEl.src = this.currentGif;
+},
+
+toggleSound(key) {
+    if (!this.pomodoroSounds) return;
+    const audio = this.pomodoroSounds[key];
+    
+    if (!this.state.pomodoro.sounds[key]) {
+        audio.play().catch(e => console.warn(`Falha ao tocar o áudio ${key}:`, e));
+        this.state.pomodoro.sounds[key] = true;
+    } else {
+        audio.pause();
+        this.state.pomodoro.sounds[key] = false;
+    }
+    this.saveState();
+    this.refreshAudioButtons();
+},
+
+refreshAudioButtons() {
+    if (!this.pomoAssets) return;
+    Object.keys(this.pomoAssets.sounds).forEach(key => {
+        const row = document.getElementById(`track-${key}`);
+        if (row) {
+            if (this.state.pomodoro.sounds[key]) {
+                row.classList.add('active');
+                if(this.pomodoroSounds[key].paused) {
+                    this.pomodoroSounds[key].play().catch(()=>{});
                 }
-            }, 1000);
-        };
-    },
+            } else {
+                row.classList.remove('active');
+            }
+        }
+    });
+},
 
-    // 8. SNIPPETS
-    render_snippets(root) {
-        root.innerHTML = `
-            <div class="grid">
-                <div class="col-4 card">
-                    <h3>Novo Snippet</h3>
-                    <input id="snipTitle" placeholder="Nome (ex: Fetch API)" style="margin-bottom:8px">
-                    <select id="snipLang" style="margin-bottom:8px"><option>JavaScript</option><option>CSS</option><option>HTML</option><option>SQL</option><option>Python</option></select>
-                    <textarea id="snipCode" style="height:150px; margin-bottom:12px; font-family:monospace" placeholder="Código..."></textarea>
-                    <button class="btn" onclick="app.addSnippet()">Salvar</button>
-                </div>
-                <div class="col-8" id="snipList" style="display:flex; flex-direction:column; gap:16px"></div>
+// --- FUNÇÕES DE CONTROLE DE TEMPO (CORE - MANTIDAS) ---
+
+startTimer(mins, isBreak = false) {
+    if (this.timerInterval) clearInterval(this.timerInterval);
+
+    this.pomoActive = true;
+    this.pomoIsBreak = isBreak;
+    this.pomoRemaining = mins * 60;
+    this.pomoTotal = this.pomoRemaining;
+
+    this.changeGif(isBreak ? 'break' : 'focus');
+
+    this.updatePomodoroUI();
+
+    this.timerInterval = setInterval(() => {
+        this.pomoRemaining--;
+        this.updatePomodoroUI();
+
+        if (this.pomoRemaining <= 0) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+            this.pomoActive = false;
+
+            if (!isBreak) {
+                const today = new Date().toISOString().slice(0, 10);
+                this.state.pomodoro.history.push({ date: today, duration: mins });
+                this.saveState();
+                if(this.currentTab === 'pomodoro') this.render_pomodoro(document.getElementById('content'));
+            }
+            
+            try { new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg").play(); } catch (e) {}
+            this.toast(isBreak ? "Pausa finalizada!" : "Sessão concluída!", "success");
+        }
+    }, 1000);
+},
+
+stopTimer() {
+    if (this.timerInterval) clearInterval(this.timerInterval);
+    this.timerInterval = null;
+    this.pomoActive = false;
+    this.pomoRemaining = 0;
+    this.updatePomodoroUI();
+    this.changeGif('focus'); 
+},
+
+updatePomodoroUI() {
+    const display = document.getElementById("pomoDisplay");
+    const mode = document.getElementById("pomoMode");
+    const circle = document.getElementById("pomoProgress");
+
+    if (!this.pomoActive) {
+        if (display) display.innerText = "--:--";
+        if (mode) mode.innerText = "Aguardando";
+        document.title = "FLUXO";
+        return;
+    }
+
+    const m = Math.floor(this.pomoRemaining / 60);
+    const s = this.pomoRemaining % 60;
+    const timeStr = `${m}:${s < 10 ? "0" + s : s}`;
+
+    if (display) display.innerText = timeStr;
+    if (mode) mode.innerText = this.pomoIsBreak ? "Pausa regenerativa" : "Foco absoluto";
+    document.title = `(${timeStr}) Foco`;
+
+    if (circle && this.pomoTotal > 0) {
+        const offset = 691 - (691 * (this.pomoTotal - this.pomoRemaining)) / this.pomoTotal;
+        circle.style.strokeDashoffset = offset;
+    }
+},
+
+// 8. SNIPPETS (Com Busca e Expandir/Colapsar)
+render_snippets(root) {
+    // Estado local para busca (se não existir, cria vazio)
+    if (!this.snippetSearch) this.snippetSearch = "";
+
+    root.innerHTML = `
+        <div class="grid">
+            <div class="col-4 card">
+                <h3>Novo Snippet</h3>
+                <input id="snipTitle" placeholder="Nome (ex: Fetch API)" style="margin-bottom:8px">
+                <select id="snipLang" style="margin-bottom:8px"><option>JavaScript</option><option>CSS</option><option>HTML</option><option>SQL</option><option>Python</option></select>
+                <textarea id="snipCode" style="height:150px; margin-bottom:12px; font-family:monospace" placeholder="Cole seu código aqui..."></textarea>
+                <button class="btn" onclick="app.addSnippet()">Salvar Snippet</button>
             </div>
-        `;
-        const render = () => {
-            document.getElementById('snipList').innerHTML = this.state.snippets.map(s => `
-                <div class="card">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:8px">
-                        <strong>${s.title} <span class="muted">(${s.lang})</span></strong>
-                        <button class="btn ghost danger" style="padding:2px 8px" onclick="app.delSnippet('${s.id}')">X</button>
+            
+            <div class="col-8">
+                <div class="card" style="margin-bottom: 16px; padding: 12px;">
+                    <div style="display:flex; align-items:center; gap: 10px;">
+                        <i class="ph ph-magnifying-glass" style="color:var(--text-muted)"></i>
+                        <input type="text" id="searchSnipInput" placeholder="Buscar snippets..." value="${this.snippetSearch}" style="border:none; background:transparent; padding:0;">
                     </div>
-                    <pre style="background:#0f172a; padding:12px; border-radius:6px; overflow-x:auto; font-family:monospace; color:#cbd5e1">${s.code.replace(/</g,'&lt;')}</pre>
-                    <button class="btn ghost" style="margin-top:8px; font-size:11px" onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(s.code)}')); app.toast('Copiado!')">Copiar</button>
                 </div>
-            `).join('');
-        };
-        this.addSnippet = () => {
-            const title = document.getElementById('snipTitle').value;
-            const code = document.getElementById('snipCode').value;
-            const lang = document.getElementById('snipLang').value;
-            if(title && code) { this.state.snippets.unshift({ id:this.uid(), title, code, lang }); this.saveState(); render(); }
-        };
-        this.delSnippet = (id) => { this.confirmModal('Apagar snippet?', ()=>{ this.state.snippets = this.state.snippets.filter(x=>x.id!==id); this.saveState(); render(); }); };
-        render();
-    },
+
+                <div id="snipList" style="display:flex; flex-direction:column; gap:12px"></div>
+            </div>
+        </div>
+    `;
+
+    // Listener de busca
+    document.getElementById('searchSnipInput').onkeyup = (e) => {
+        this.snippetSearch = e.target.value.toLowerCase();
+        renderList();
+    };
+
+    const renderList = () => {
+        const filtered = this.state.snippets.filter(s => 
+            s.title.toLowerCase().includes(this.snippetSearch) || 
+            s.lang.toLowerCase().includes(this.snippetSearch)
+        );
+
+        document.getElementById('snipList').innerHTML = filtered.length ? filtered.map(s => `
+            <div class="card" style="padding: 16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="width:40px; height:40px; background:rgba(99,102,241,0.1); border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--primary); font-size:10px;">${s.lang.substring(0,3).toUpperCase()}</div>
+                        <div>
+                            <div style="font-weight:600; font-size:15px;">${s.title}</div>
+                            <div class="muted" style="font-size:12px;">${s.lang}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn ghost" onclick="document.getElementById('code-${s.id}').style.display = document.getElementById('code-${s.id}').style.display === 'none' ? 'block' : 'none'">
+                            <i class="ph ph-code"></i> Ver Código
+                        </button>
+                        <button class="btn ghost danger" style="padding:8px" onclick="app.delSnippet('${s.id}')"><i class="ph ph-trash"></i></button>
+                    </div>
+                </div>
+                
+                <div id="code-${s.id}" style="display:none; margin-top:16px; animation: fadeIn 0.3s;">
+                    <div style="position:relative;">
+                        <pre style="background:#0f172a; padding:16px; border-radius:8px; overflow-x:auto; font-family:'Fira Code', monospace; color:#cbd5e1; font-size:13px; border:1px solid var(--border);">${s.code.replace(/</g,'&lt;')}</pre>
+                        <button class="btn ghost" style="position:absolute; top:8px; right:8px; font-size:11px; background:rgba(0,0,0,0.5); color:white;" 
+                                onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(s.code)}')); app.toast('Código copiado!')">
+                            <i class="ph ph-copy"></i> Copiar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('') : '<div class="muted text-center" style="margin-top:20px">Nenhum snippet encontrado.</div>';
+    };
+
+    this.addSnippet = () => {
+        const title = document.getElementById('snipTitle').value;
+        const code = document.getElementById('snipCode').value;
+        const lang = document.getElementById('snipLang').value;
+        if(title && code) { 
+            this.state.snippets.unshift({ id:this.uid(), title, code, lang }); 
+            this.saveState(); 
+            this.snippetSearch = ""; // Limpa busca ao adicionar
+            this.render_snippets(root); 
+            this.toast('Snippet salvo!');
+        }
+    };
+    
+    this.delSnippet = (id) => { 
+        this.confirmModal('Apagar snippet?', ()=>{ 
+            this.state.snippets = this.state.snippets.filter(x=>x.id!==id); 
+            this.saveState(); 
+            renderList(); 
+        }); 
+    };
+    
+    renderList();
+},
 
     // 9. BOOKMARKS
     render_bookmarks(root) {
