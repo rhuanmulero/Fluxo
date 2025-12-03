@@ -1124,14 +1124,63 @@ const app = {
         `;
     },
 
-  // 2. TAREFAS (COM PROJETO, % RESTAURADA E SYNC ÚNICO)
-    render_tasks(root) {
-        const PRIORITY_COLORS = { 'Alta': '#ef4444', 'Média': '#f59e0b', 'Baixa': '#10b981' };
+// 2. TAREFAS (COM PROJETO, % RESTAURADA E SYNC ÚNICO)
+render_tasks(root) {
+    const PRIORITY_COLORS = { 'Alta': '#ef4444', 'Média': '#f59e0b', 'Baixa': '#10b981' };
+    const PRIORITY_MAP = { 'Alta': 3, 'Média': 2, 'Baixa': 1 };
 
-        const renderList = () => {
-            const list = document.getElementById('taskList');
-            list.innerHTML = this.state.tasks.length === 0 ? '<div class="muted text-center" style="padding:20px">Nenhuma tarefa.</div>' : 
-            this.state.tasks.map(t => {
+    // Inicializa o estado de filtros se não existir
+    if (!this.state.taskFilters) {
+        this.state.taskFilters = {
+            searchTerm: '',
+            sortBy: 'priority_desc', // Ex: prioridade_desc ou deadline_asc
+        };
+    }
+    
+    // --- FUNÇÃO CENTRAL DE FILTRAGEM E RENDERIZAÇÃO ---
+    const renderList = () => {
+        // 1. Obter filtros e termo de busca
+        const filters = this.state.taskFilters;
+        const term = filters.searchTerm.toLowerCase();
+        const [sortBy, sortOrder] = filters.sortBy.split('_');
+
+        // 2. Filtrar tarefas por termo de busca
+        let filteredTasks = this.state.tasks.filter(t => 
+            t.title.toLowerCase().includes(term) ||
+            (t.responsible && t.responsible.toLowerCase().includes(term))
+        );
+        
+        // 3. Ordenar tarefas
+        filteredTasks.sort((a, b) => {
+            // A. Regra Principal: Tarefas Concluídas vão para o fim
+            if (a.done && !b.done) return 1;
+            if (!a.done && b.done) return -1;
+            if (a.done && b.done) return 0; // Se ambos done, não altera a ordem relativa por essa regra
+
+            let valA, valB;
+            let result = 0;
+
+            if (sortBy === 'priority') {
+                valA = PRIORITY_MAP[a.priority] || 0;
+                valB = PRIORITY_MAP[b.priority] || 0;
+                result = valA - valB;
+            } else if (sortBy === 'deadline') {
+                // Datas nulas ou vazias são tratadas como 'muito longe' (Infinity)
+                valA = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+                valB = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+                result = valA - valB;
+            }
+
+            // Aplicar ordem (crescente/decrescente)
+            return sortOrder === 'asc' ? result : -result;
+        });
+
+        // 4. Renderizar o HTML
+        const list = document.getElementById('taskList');
+        list.innerHTML = filteredTasks.length === 0 
+            ? '<div class="muted text-center" style="padding:20px">Nenhuma tarefa encontrada.</div>' 
+            : 
+            filteredTasks.map(t => {
                 // Lógica de Prazo
                 let deadlineHtml = '';
                 if(t.deadline) {
@@ -1150,7 +1199,7 @@ const app = {
                     : `<button class="btn ghost" style="padding:6px 10px" title="Enviar para o Board do Projeto" onclick="app.copyToKanban('${t.id}')"><i class="ph ph-arrow-fat-right"></i></button>`;
 
                 return `
-                <div class="card" style="margin-bottom:8px; padding:12px; border-left: 3px solid ${PRIORITY_COLORS[t.priority]||'#94a3b8'}">
+                <div class="card" style="margin-bottom:8px; padding:12px; border-left: 3px solid ${PRIORITY_COLORS[t.priority]||'#94a3b8'}; opacity:${t.done?0.5:1}; transition:opacity 0.3s">
                     <div style="display:flex; gap:12px; align-items:flex-start">
                         <div onclick="app.toggleTask('${t.id}')" style="cursor:pointer; margin-top:2px; width:20px; height:20px; border-radius:6px; border:2px solid ${t.done?'#34d399':'#6366f1'}; background:${t.done?'#34d399':'transparent'}; display:flex; align-items:center; justify-content:center; flex-shrink:0">
                             ${t.done ? '<i class="ph ph-check" style="color:#0f172a; font-size:12px"></i>' : ''}
@@ -1184,217 +1233,249 @@ const app = {
                         </div>
                     </div>
                 </div>
-            `}).join('');
-        };
+                `;
+            }).join('');
+    };
 
-        // UI de Input (Atualizada para Mobile)
-        root.innerHTML = `
-            <div class="grid">
-                <div class="col-12 card task-input-wrapper" style="display:flex; flex-direction:column; gap:10px">
-                    <div class="task-row-1" style="display:flex; gap:10px">
-                        <input id="newTask" placeholder="Título da nova tarefa..." style="flex:2">
-                        <select id="newBoard" style="flex:1; color:var(--accent); font-weight:600">
-                            <option value="">Selecionar Projeto...</option>
-                            ${this.state.boards.map(b => `<option value="${b.id}">${b.title}</option>`).join('')}
-                        </select>
-                    </div>
-                    
-                    <div class="task-row-2" style="display:flex; gap:10px; align-items:center;">
-                        <input id="newDate" type="date" style="flex:1">
-                        <input id="newEst" placeholder="Tempo" style="width:80px">
-                        <input id="newResp" placeholder="Resp." style="flex:1">
-                        <select id="newType" style="flex:1"><option value="">Tipo...</option><option>Feature</option><option>Bug</option><option>Conteúdo</option><option>Admin</option></select>
-                        <select id="newPrio" style="width:100px"><option>Baixa</option><option selected>Média</option><option>Alta</option></select>
-                        <button id="addT" class="btn">Add</button>
-                    </div>
-                </div>
-                <div class="col-12" id="taskList"></div>
-            </div>
-        `;
-        
-        // Lógica de Adicionar (Mantida)
-        document.getElementById('addT').onclick = () => {
-            const title = document.getElementById('newTask').value;
-            const boardId = document.getElementById('newBoard').value;
-            
-            if(!title) return;
-            if(!boardId && this.state.boards.length > 0) {
-                 this.toast('Por favor, selecione um Projeto (Board).', 'error');
-                 return;
-            }
-
-            const id = this.uid();
-            const newTask = { 
-                id, title, boardId,
-                deadline: document.getElementById('newDate').value,
-                estimate: document.getElementById('newEst').value,
-                responsible: document.getElementById('newResp').value,
-                type: document.getElementById('newType').value,
-                priority: document.getElementById('newPrio').value,
-                done: false, progress: 0, inKanban: false 
-            };
-
-            this.state.tasks.unshift(newTask);
-            if(newTask.deadline) this.syncToCalendar(newTask.id, newTask.title, newTask.deadline);
-            this.saveState(); renderList();
-            
-            document.getElementById('newTask').value = '';
-        };
-
-        // Toggle Task (Adicionado Sync com Kanban)
-        this.toggleTask = (id) => { 
-            const t = this.state.tasks.find(x=>x.id===id); 
-            if(t) { 
-                t.done = !t.done; 
-                t.progress = t.done?100:0; 
-                
-                // Sincroniza progresso e coluna para o Card Kanban
-                const linkedCard = this.state.cards.find(c => c.originId === t.id);
-                if(linkedCard) {
-                    linkedCard.progress = t.progress;
-                    if(t.done) linkedCard.col = 'done';
-                    if(!t.done && linkedCard.col === 'done') linkedCard.col = 'todo'; // Volta para 'A fazer'
-                }
-
-                this.saveState(); 
-                renderList(); 
-                // Se a aba Kanban estiver aberta, forçamos a renderização para mostrar a mudança
-                if(this.currentTab === 'kanban') this.render_kanban(document.getElementById('kanban-content'));
-            }
-        };
-        
-        this.delTask = (id) => {
-            this.confirmModal('Excluir tarefa?', () => {
-                // 1. Remove a tarefa principal
-                this.state.tasks = this.state.tasks.filter(x=>x.id!==id);
-                
-                // 2. CORREÇÃO: Remove o Card Kanban associado que possui o 'originId' desta tarefa
-                this.state.cards = this.state.cards.filter(c => c.originId !== id);
-
-                // 3. Remove da agenda
-                this.syncToCalendar(id, null, null); 
-                
-                // 4. Salva e re-renderiza
-                this.saveState(); renderList();
-                
-                // Opcional: Força a atualização do Kanban se estiver na aba
-                if(this.currentTab === 'kanban') this.render_kanban(document.getElementById('kanban-content'));
-            });
-        };
-
-        this.copyToKanban = (id) => {
-            const t = this.state.tasks.find(x=>x.id===id);
-            if(!t) return;
-            
-            const targetBoardId = t.boardId || this.currentBoardId || this.state.boards[0]?.id;
-            
-            if(!targetBoardId) return this.toast("Nenhum projeto selecionado!", "error");
-
-            this.confirmModal(`Enviar "${t.title}" para o Kanban?`, () => {
-                this.state.cards.push({
-                    id: this.uid(),
-                    originId: t.id, // VÍNCULO IMPORTANTE
-                    boardId: targetBoardId,
-                    col: 'todo',
-                    title: t.title,
-                    desc: `Resp: ${t.responsible||'-'} | Tipo: ${t.type||'-'}`,
-                    deadline: t.deadline,
-                    estimate: t.estimate,
-                    progress: t.progress
-                });
-                
-                t.inKanban = true;
-                this.saveState();
-                const bTitle = this.state.boards.find(b=>b.id===targetBoardId)?.title;
-                this.toast(`Enviado para: ${bTitle}`);
-                renderList();
-            });
-        };
-        
-        // --- FUNÇÃO DE EDIÇÃO CORRIGIDA E COM SINCRONIZAÇÃO KANBAN ---
-        this.editTaskPrompt = (id) => {
-            const t = this.state.tasks.find(x=>x.id===id);
-            if(!t) return;
-
-            this.openModal(`
-                <h3>Editar Tarefa</h3>
-                <label class="muted">Título</label>
-                <input id="edTitle" value="${t.title}" style="margin-bottom:10px">
-                
-                <div style="display:flex; gap:10px; margin-bottom:10px">
-                    <div style="flex:1"><label class="muted">Prazo</label><input id="edDate" type="date" value="${t.deadline||''}"></div>
-                    <div style="flex:1"><label class="muted">Estimativa</label><input id="edEst" value="${t.estimate||''}"></div>
-                </div>
-
-                <div style="display:flex; gap:10px; margin-bottom:10px">
-                    <div style="flex:1"><label class="muted">Responsável</label><input id="edResp" value="${t.responsible||''}"></div>
-                    <div style="flex:1">
-                         <label class="muted">Prioridade</label>
-                         <select id="edPrio">
-                            <option value="Baixa" ${t.priority==='Baixa'?'selected':''}>Baixa</option>
-                            <option value="Média" ${t.priority==='Média'?'selected':''}>Média</option>
-                            <option value="Alta" ${t.priority==='Alta'?'selected':''}>Alta</option>
-                         </select>
-                    </div>
-                </div>
-                
-                <div style="margin-bottom:10px">
-                    <label class="muted">Tipo</label>
-                    <select id="edType" style="width:100%">
-                        <option value="Feature" ${t.type==='Feature'?'selected':''}>Feature</option>
-                        <option value="Bug" ${t.type==='Bug'?'selected':''}>Bug</option>
-                        <option value="Conteúdo" ${t.type==='Conteúdo'?'selected':''}>Conteúdo</option>
-                        <option value="Admin" ${t.type==='Admin'?'selected':''}>Admin</option>
+    // UI de Input e Filtro (ATUALIZADA)
+    root.innerHTML = `
+        <div class="grid">
+            <div class="col-12 card task-input-wrapper" style="display:flex; flex-direction:column; gap:10px">
+                <div class="task-row-1" style="display:flex; gap:10px">
+                    <input id="newTask" placeholder="Título da nova tarefa..." style="flex:2">
+                    <select id="newBoard" style="flex:1; color:var(--accent); font-weight:600">
+                        <option value="">Selecionar Projeto...</option>
+                        ${this.state.boards.map(b => `<option value="${b.id}">${b.title}</option>`).join('')}
                     </select>
                 </div>
-
-                <div style="margin-bottom:20px">
-                    <label class="muted">Progresso (%)</label>
-                    <input id="edProg" type="number" min="0" max="100" value="${t.progress||0}" style="width:100%">
+                
+                <div class="task-row-2" style="display:flex; gap:10px; align-items:center;">
+                    <input id="newDate" type="date" style="flex:1">
+                    <input id="newEst" placeholder="Tempo" style="width:80px">
+                    <input id="newResp" placeholder="Resp." style="flex:1">
+                    <select id="newType" style="flex:1"><option value="">Tipo...</option><option>Feature</option><option>Bug</option><option>Conteúdo</option><option>Admin</option></select>
+                    <select id="newPrio" style="width:100px"><option>Baixa</option><option selected>Média</option><option>Alta</option></select>
+                    <button id="addT" class="btn">Add</button>
                 </div>
-
-                <div class="modal-actions">
-                    <button class="btn" id="saveEdTask">Salvar Alterações</button>
-                </div>
-            `);
+            </div>
             
-            document.getElementById('saveEdTask').onclick = () => {
-                // 1. Atualiza a Tarefa
-                t.title = document.getElementById('edTitle').value;
-                t.deadline = document.getElementById('edDate').value;
-                t.estimate = document.getElementById('edEst').value;
-                t.responsible = document.getElementById('edResp').value;
-                t.priority = document.getElementById('edPrio').value;
-                t.type = document.getElementById('edType').value;
-                t.progress = parseInt(document.getElementById('edProg').value) || 0;
-                
-                // 2. Sincroniza com a Agenda (usa o ID da tarefa)
-                if(t.deadline) this.syncToCalendar(t.id, t.title, t.deadline);
+            <div class="col-12 card" style="margin-top: 15px; padding: 12px; display:flex; gap:10px; align-items:center;">
+                <i class="ph ph-magnifying-glass" style="font-size: 20px; color: var(--text-muted)"></i>
+                <input id="taskSearchInput" placeholder="Buscar por título, responsável..." style="flex:1;" value="${this.state.taskFilters.searchTerm}">
+                <select id="taskSortSelect" style="width: 180px;">
+                    <option value="priority_desc" ${this.state.taskFilters.sortBy === 'priority_desc' ? 'selected' : ''}>Prioridade (Alta -> Baixa)</option>
+                    <option value="priority_asc" ${this.state.taskFilters.sortBy === 'priority_asc' ? 'selected' : ''}>Prioridade (Baixa -> Alta)</option>
+                    <option value="deadline_asc" ${this.state.taskFilters.sortBy === 'deadline_asc' ? 'selected' : ''}>Prazo (Mais Perto)</option>
+                    <option value="deadline_desc" ${this.state.taskFilters.sortBy === 'deadline_desc' ? 'selected' : ''}>Prazo (Mais Longe)</option>
+                </select>
+            </div>
+            
+            <div class="col-12" id="taskList"></div>
+        </div>
+    `;
 
-                // 3. Atualiza o Card Kanban (se existir)
-                const linkedCard = this.state.cards.find(c => c.originId === t.id);
-                if(linkedCard) {
-                    linkedCard.title = t.title;
-                    linkedCard.deadline = t.deadline;
-                    linkedCard.estimate = t.estimate;
-                    linkedCard.progress = t.progress;
-                    // Atualiza a descrição com Responsável e Tipo
-                    linkedCard.desc = `Resp: ${t.responsible||'-'} | Tipo: ${t.type||'-'}`;
-                    this.toast('Card Kanban associado atualizado.', 'info');
-                }
-                
-                // 4. Salva e Renderiza
-                this.saveState(); 
-                this.closeModal(); 
-                renderList(); // Rerenderiza a lista de tarefas
-                
-                // Se o Kanban estiver aberto, ele também é atualizado
-                if(this.currentTab === 'kanban') this.render_kanban(document.getElementById('kanban-content'));
-            };
+    // --- LÓGICA DE FILTRAGEM E EVENTOS (NOVA) ---
+    const taskSearchInput = document.getElementById('taskSearchInput');
+    const taskSortSelect = document.getElementById('taskSortSelect');
+    
+    // Função para atualizar o estado e re-renderizar
+    const applyFilterAndSort = () => {
+        this.state.taskFilters.searchTerm = taskSearchInput.value;
+        this.state.taskFilters.sortBy = taskSortSelect.value;
+        this.saveState(); // Salva o estado dos filtros
+        renderList();
+    };
+
+    // Event listeners
+    taskSearchInput.oninput = applyFilterAndSort;
+    taskSortSelect.onchange = applyFilterAndSort;
+    
+    // Lógica de Adicionar (Mantida)
+    document.getElementById('addT').onclick = () => {
+        const title = document.getElementById('newTask').value;
+        const boardId = document.getElementById('newBoard').value;
+        
+        if(!title) return;
+        if(!boardId && this.state.boards.length > 0) {
+                this.toast('Por favor, selecione um Projeto (Board).', 'error');
+                return;
+        }
+
+        const id = this.uid();
+        const newTask = { 
+            id, title, boardId,
+            deadline: document.getElementById('newDate').value,
+            estimate: document.getElementById('newEst').value,
+            responsible: document.getElementById('newResp').value,
+            type: document.getElementById('newType').value,
+            priority: document.getElementById('newPrio').value,
+            done: false, progress: 0, inKanban: false 
         };
 
-        renderList();
-    },
+        this.state.tasks.unshift(newTask);
+        if(newTask.deadline) this.syncToCalendar(newTask.id, newTask.title, newTask.deadline);
+        this.saveState(); 
+        renderList(); // Usa a função de renderização atualizada
+        
+        document.getElementById('newTask').value = '';
+    };
+
+    // Toggle Task (Mantida, mas chama renderList)
+    this.toggleTask = (id) => { 
+        const t = this.state.tasks.find(x=>x.id===id); 
+        if(t) { 
+            t.done = !t.done; 
+            t.progress = t.done?100:0; 
+            
+            // Sincroniza progresso e coluna para o Card Kanban
+            const linkedCard = this.state.cards.find(c => c.originId === t.id);
+            if(linkedCard) {
+                linkedCard.progress = t.progress;
+                if(t.done) linkedCard.col = 'done';
+                if(!t.done && linkedCard.col === 'done') linkedCard.col = 'todo'; // Volta para 'A fazer'
+            }
+
+            this.saveState(); 
+            renderList(); // Usa a função de renderização atualizada
+            // Se a aba Kanban estiver aberta, forçamos a renderização para mostrar a mudança
+            if(this.currentTab === 'kanban') this.render_kanban(document.getElementById('kanban-content'));
+        }
+    };
+    
+    this.delTask = (id) => {
+        this.confirmModal('Excluir tarefa?', () => {
+            // 1. Remove a tarefa principal
+            this.state.tasks = this.state.tasks.filter(x=>x.id!==id);
+            
+            // 2. CORREÇÃO: Remove o Card Kanban associado que possui o 'originId' desta tarefa
+            this.state.cards = this.state.cards.filter(c => c.originId !== id);
+
+            // 3. Remove da agenda
+            this.syncToCalendar(id, null, null); 
+            
+            // 4. Salva e re-renderiza
+            this.saveState(); 
+            renderList(); // Usa a função de renderização atualizada
+            
+            // Opcional: Força a atualização do Kanban se estiver na aba
+            if(this.currentTab === 'kanban') this.render_kanban(document.getElementById('kanban-content'));
+        });
+    };
+
+    this.copyToKanban = (id) => {
+        const t = this.state.tasks.find(x=>x.id===id);
+        if(!t) return;
+        
+        const targetBoardId = t.boardId || this.currentBoardId || this.state.boards[0]?.id;
+        
+        if(!targetBoardId) return this.toast("Nenhum projeto selecionado!", "error");
+
+        this.confirmModal(`Enviar "${t.title}" para o Kanban?`, () => {
+            this.state.cards.push({
+                id: this.uid(),
+                originId: t.id, // VÍNCULO IMPORTANTE
+                boardId: targetBoardId,
+                col: 'todo',
+                title: t.title,
+                desc: `Resp: ${t.responsible||'-'} | Tipo: ${t.type||'-'}`,
+                deadline: t.deadline,
+                estimate: t.estimate,
+                progress: t.progress
+            });
+            
+            t.inKanban = true;
+            this.saveState();
+            const bTitle = this.state.boards.find(b=>b.id===targetBoardId)?.title;
+            this.toast(`Enviado para: ${bTitle}`);
+            renderList(); // Usa a função de renderização atualizada
+        });
+    };
+    
+    // --- FUNÇÃO DE EDIÇÃO CORRIGIDA E COM SINCRONIZAÇÃO KANBAN (Mantida, mas chama renderList) ---
+    this.editTaskPrompt = (id) => {
+        const t = this.state.tasks.find(x=>x.id===id);
+        if(!t) return;
+
+        this.openModal(`
+            <h3>Editar Tarefa</h3>
+            <label class="muted">Título</label>
+            <input id="edTitle" value="${t.title}" style="margin-bottom:10px">
+            
+            <div style="display:flex; gap:10px; margin-bottom:10px">
+                <div style="flex:1"><label class="muted">Prazo</label><input id="edDate" type="date" value="${t.deadline||''}"></div>
+                <div style="flex:1"><label class="muted">Estimativa</label><input id="edEst" value="${t.estimate||''}"></div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-bottom:10px">
+                <div style="flex:1"><label class="muted">Responsável</label><input id="edResp" value="${t.responsible||''}"></div>
+                <div style="flex:1">
+                    <label class="muted">Prioridade</label>
+                    <select id="edPrio">
+                        <option value="Baixa" ${t.priority==='Baixa'?'selected':''}>Baixa</option>
+                        <option value="Média" ${t.priority==='Média'?'selected':''}>Média</option>
+                        <option value="Alta" ${t.priority==='Alta'?'selected':''}>Alta</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="margin-bottom:10px">
+                <label class="muted">Tipo</label>
+                <select id="edType" style="width:100%">
+                    <option value="" ${!t.type?'selected':''}>Sem Tipo</option>
+                    <option value="Feature" ${t.type==='Feature'?'selected':''}>Feature</option>
+                    <option value="Bug" ${t.type==='Bug'?'selected':''}>Bug</option>
+                    <option value="Conteúdo" ${t.type==='Conteúdo'?'selected':''}>Conteúdo</option>
+                    <option value="Admin" ${t.type==='Admin'?'selected':''}>Admin</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom:20px">
+                <label class="muted">Progresso (%)</label>
+                <input id="edProg" type="number" min="0" max="100" value="${t.progress||0}" style="width:100%">
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn" id="saveEdTask">Salvar Alterações</button>
+            </div>
+        `);
+        
+        document.getElementById('saveEdTask').onclick = () => {
+            // 1. Atualiza a Tarefa
+            t.title = document.getElementById('edTitle').value;
+            t.deadline = document.getElementById('edDate').value;
+            t.estimate = document.getElementById('edEst').value;
+            t.responsible = document.getElementById('edResp').value;
+            t.priority = document.getElementById('edPrio').value;
+            t.type = document.getElementById('edType').value;
+            t.progress = parseInt(document.getElementById('edProg').value) || 0;
+            
+            // 2. Sincroniza com a Agenda (usa o ID da tarefa)
+            if(t.deadline) this.syncToCalendar(t.id, t.title, t.deadline);
+
+            // 3. Atualiza o Card Kanban (se existir)
+            const linkedCard = this.state.cards.find(c => c.originId === t.id);
+            if(linkedCard) {
+                linkedCard.title = t.title;
+                linkedCard.deadline = t.deadline;
+                linkedCard.estimate = t.estimate;
+                linkedCard.progress = t.progress;
+                // Atualiza a descrição com Responsável e Tipo
+                linkedCard.desc = `Resp: ${t.responsible||'-'} | Tipo: ${t.type||'-'}`;
+                this.toast('Card Kanban associado atualizado.', 'info');
+            }
+            
+            // 4. Salva e Renderiza
+            this.saveState(); 
+            this.closeModal(); 
+            renderList(); // Rerenderiza a lista de tarefas
+            
+            // Se o Kanban estiver aberto, ele também é atualizado
+            if(this.currentTab === 'kanban') this.render_kanban(document.getElementById('kanban-content'));
+        };
+    };
+
+    renderList(); // RENDERIZA A LISTA INICIALMENTE COM OS FILTROS DE ESTADO
+},
 
    // 3. KANBAN (Sprints e Colunas Dinâmicas)
 render_kanban(root) {
