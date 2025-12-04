@@ -1,9 +1,9 @@
 /**
  * ARQUIVO PRINCIPAL: js/app.js
- * Gerencia o estado, rotas, inicialização e integração com a nuvem.
+ * Gerencia estado, rotas, cache híbrido e inicialização.
  */
 
-// 1. CONFIGURAÇÕES GLOBAIS
+// 1. CONFIGURAÇÕES GLOBAIS DE NAVEGAÇÃO
 const VIEWS = {
     dashboard: { icon: 'ph-squares-four', label: 'Dashboard' },
     tasks:     { icon: 'ph-check-circle', label: 'Tarefas' },
@@ -18,7 +18,7 @@ const VIEWS = {
     vault:     { icon: 'ph-files', label: 'Vault (PDF)' }
 };
 
-// Configuração de Eventos (Global)
+// Configuração de Cores de Eventos (Global)
 const EV_CONFIG = {
     'meeting': { icon: 'ph-users', color: '#a855f7', label: 'Reunião' },
     'daily': { icon: 'ph-video-camera', color: '#3b82f6', label: 'Daily' },
@@ -26,7 +26,7 @@ const EV_CONFIG = {
     'other': { icon: 'ph-calendar-blank', color: '#94a3b8', label: 'Outro' }
 };
 
-// Estado Inicial Limpo
+// Estado Inicial Limpo (Template)
 const DEFAULT_STATE = {
     tasks: [],
     kanbanCols: [
@@ -48,29 +48,31 @@ const app = {
     theme: 'dark',
     currentTab: 'dashboard',
 
+    // --- INICIALIZAÇÃO ---
     init() {
         console.log("Iniciando FLUXO OS...");
         
-        // Carrega configurações locais
-        this.loadState();
+        // 1. Configurações Visuais
         this.loadTheme();
         this.renderMenu();
         
-        // Inicializa Atalhos de Teclado
-        this.initShortcuts();
+        // 2. Atalhos de Teclado
+        if(this.initShortcuts) this.initShortcuts();
 
-        // Inicializa Nuvem (Login/Supabase) se o módulo existir
+        // 3. CARREGAMENTO DE DADOS (CRÍTICO)
+        // Carrega do cache local imediatamente para não piscar tela vazia no F5
+        this.loadInitialState();
+
+        // 4. Conexão com Nuvem (Background)
+        // Se estiver logado, o cloud.js vai baixar dados novos e atualizar a tela depois
         if (this.cloud) this.cloud.init();
 
-        // Renderiza a primeira tela (por trás do login)
+        // 5. Renderiza a tela inicial
         this.router('dashboard');
-        this.updateStorageStats();
-
-        // Listeners globais de UI
+        
+        // Listeners UI Globais
         const modal = document.getElementById('modal');
-        if(modal) modal.addEventListener('click', (e) => {
-            if (e.target.id === 'modal') this.closeModal();
-        });
+        if(modal) modal.addEventListener('click', (e) => { if (e.target.id === 'modal') this.closeModal(); });
         
         document.addEventListener('click', (e) => {
             if(window.innerWidth < 768 && e.target.closest('nav button')) {
@@ -79,35 +81,59 @@ const app = {
         });
     },
 
-    loadState() {
-        const raw = localStorage.getItem('fluxo_v5');
-        this.state = raw ? { ...DEFAULT_STATE, ...JSON.parse(raw) } : JSON.parse(JSON.stringify(DEFAULT_STATE));
-        
-        // Garante que tenha pelo menos 1 board se estiver vazio
+    // --- GERENCIAMENTO DE ESTADO E CACHE ---
+    loadInitialState() {
+        // Tenta recuperar Cache de Usuário Logado (protege contra F5)
+        const userCache = localStorage.getItem('fluxo_user_cache');
+        // Tenta recuperar Dados de Convidado
+        const guestData = localStorage.getItem('fluxo_guest_data');
+
+        if (userCache) {
+            console.log("Cache de usuário carregado.");
+            this.state = { ...DEFAULT_STATE, ...JSON.parse(userCache) };
+        } else if (guestData) {
+            console.log("Dados de convidado carregados.");
+            this.state = { ...DEFAULT_STATE, ...JSON.parse(guestData) };
+        } else {
+            console.log("Iniciando estado limpo.");
+            this.state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+        }
+
+        // Garante integridade: Sempre deve haver pelo menos 1 board
         if(!this.state.boards || this.state.boards.length === 0) {
-            const bid = this.uid();
+            // Nota: app.uid() vem do utils.js, que já deve estar carregado
+            const bid = this.uid ? this.uid() : Date.now().toString(); 
             this.state.boards = [{ id: bid, title: 'Projeto Principal' }];
             this.currentBoardId = bid;
         } else {
+            // Define o board atual como o primeiro da lista
             this.currentBoardId = this.state.boards[0].id;
         }
     },
 
     saveState() {
+        // Identifica o modo de operação
+        const isGuest = localStorage.getItem('fluxo_guest_mode') === 'true';
+        const isLoggedIn = this.cloud && this.cloud.user;
+
         try {
-            // 1. Salva Localmente (Backup e Modo Convidado)
-            localStorage.setItem('fluxo_v5', JSON.stringify(this.state));
-            
-            // 2. Salva na Nuvem (Se estiver logado)
-            if(this.cloud) this.cloud.save();
+            if (isGuest) {
+                // Modo Convidado: Salva apenas localmente no slot de convidado
+                localStorage.setItem('fluxo_guest_data', JSON.stringify(this.state));
+            } else if (isLoggedIn) {
+                // Modo Logado: Salva no CACHE (para F5) e na NUVEM (para Sync)
+                localStorage.setItem('fluxo_user_cache', JSON.stringify(this.state));
+                this.cloud.save(); // Chama o salvamento do Supabase
+            }
 
             this.updateStorageStats();
         } catch (e) {
-            if(this.toast) this.toast('Erro ao salvar (Storage cheio)', 'error');
+            console.error("Erro ao salvar estado:", e);
+            if(this.toast) this.toast('Erro ao salvar localmente', 'error');
         }
     },
 
-    // --- ROTEAMENTO ---
+    // --- ROTEAMENTO (NAVEGAÇÃO) ---
     router(viewName) {
         this.currentTab = viewName;
         const conf = VIEWS[viewName];
@@ -127,12 +153,13 @@ const app = {
         // Renderiza Conteúdo
         const root = document.getElementById('content');
         if(!root) return;
-        root.innerHTML = ''; // Limpa tela anterior
+        root.innerHTML = ''; 
         
+        // Chama a função render_NOMEDOMODULO se existir
         if (typeof this[`render_${viewName}`] === 'function') {
             this[`render_${viewName}`](root);
         } else {
-            root.innerHTML = `<div style="padding:40px; text-align:center;" class="muted">Módulo <b>${conf.label}</b> carregando...</div>`;
+            root.innerHTML = `<div style="padding:40px; text-align:center;" class="muted">Carregando módulo <b>${conf.label}</b>...</div>`;
         }
     },
     
@@ -179,7 +206,7 @@ const app = {
     updateStorageStats() {
         try {
             const used = new Blob([JSON.stringify(this.state)]).size;
-            // Considerando 5MB padrão de localStorage
+            // Considerando 5MB padrão
             const pct = Math.min(100, (used/5000000)*100).toFixed(1);
             const sizeEl = document.getElementById('storageSize');
             const barEl = document.getElementById('storageBar');
@@ -188,51 +215,40 @@ const app = {
         } catch(e) {}
     },
 
-    // --- CONTROLE DE ACESSO (Login/Guest) ---
-    
+    // --- CONTROLE DE ACESSO (MODO CONVIDADO) ---
     enterAsGuest() {
         localStorage.setItem('fluxo_guest_mode', 'true');
         this.hideLoginScreen();
-        // Atualiza a sidebar para mostrar que é convidado
+        
+        // Se tiver dados de convidado antigos, eles já foram carregados no init.
+        // Se não, salva o estado inicial limpo como convidado.
+        this.saveState();
+
         if(this.cloud) this.cloud.updateUI(false);
-        this.toast("Modo Convidado (Dados locais apenas)");
+        this.toast("Modo Convidado (Dados salvos apenas neste PC)");
     },
 
     hideLoginScreen() {
         const screen = document.getElementById('login-screen');
         if (screen) {
             screen.classList.add('hidden');
-            setTimeout(() => screen.style.display = 'none', 500); // Espera animação CSS
+            setTimeout(() => screen.style.display = 'none', 500);
         }
     },
 
     // --- ATALHOS DE TECLADO ---
     initShortcuts() {
         document.addEventListener('keydown', (e) => {
-            // Ignora se estiver digitando em campos de texto
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
                 if(e.key === 'Escape') this.closeModal(); 
                 return;
             }
 
-            // Atalhos com ALT
             if (e.altKey) {
                 switch(e.key.toLowerCase()) {
-                    case 't': // Nova Tarefa
-                        e.preventDefault();
-                        this.router('tasks');
-                        setTimeout(() => document.getElementById('newTask')?.focus(), 200);
-                        break;
-                    case 'n': // Nova Nota
-                        e.preventDefault();
-                        this.router('notes');
-                        setTimeout(() => this.newNote(), 200);
-                        break;
-                    case 'e': // Novo Evento
-                        e.preventDefault();
-                        this.router('calendar');
-                        setTimeout(() => this.addEventPrompt(), 200);
-                        break;
+                    case 't': e.preventDefault(); this.router('tasks'); setTimeout(() => document.getElementById('newTask')?.focus(), 200); break;
+                    case 'n': e.preventDefault(); this.router('notes'); setTimeout(() => this.newNote(), 200); break;
+                    case 'e': e.preventDefault(); this.router('calendar'); setTimeout(() => this.addEventPrompt(), 200); break;
                     case '1': this.router('dashboard'); break;
                     case '2': this.router('tasks'); break;
                     case '3': this.router('kanban'); break;
@@ -246,5 +262,8 @@ const app = {
                 document.getElementById('overlay')?.classList.remove('show');
             }
         });
+        console.log("Atalhos inicializados.");
     }
 };
+
+window.app = app;
