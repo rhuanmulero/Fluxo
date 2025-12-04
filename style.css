@@ -40,6 +40,40 @@
         }
 
         * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+
+        /* TELA DE LOGIN */
+        #login-screen {
+        position: fixed; inset: 0; 
+        background: #0f172a; 
+        z-index: 10000; /* Acima de tudo */
+        display: flex; align-items: center; justify-content: center;
+        transition: opacity 0.5s;
+        }
+
+        #login-screen.hidden {
+        opacity: 0; pointer-events: none;
+        }
+
+        .login-card {
+        width: 100%; max-width: 360px;
+        background: rgba(30, 41, 59, 0.5);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 40px; border-radius: 24px;
+        text-align: center;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-google {
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        width: 100%; padding: 12px;
+        background: white; color: #333;
+        border: none; border-radius: 8px;
+        font-weight: 600; cursor: pointer;
+        transition: transform 0.1s;
+        }
+        
+        .btn-google:hover { transform: scale(1.02); }
         
         body {
             margin: 0;
@@ -169,10 +203,76 @@
 
         .tag-pill { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; background: var(--bg-hover); margin-right: 4px; color: var(--text-muted); border: 1px solid var(--border); }
 
-
-        /* Adicione no final do seu CSS */
         #modal {
         z-index: 9999 !important; /* Garante que fique acima do Chatbot */
+        }
+
+        /* --- UI POLISH (O Toque Final) --- */
+
+/* 1. Barra de Rolagem Personalizada (Webkit - Chrome/Edge/Safari) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-body); 
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1); 
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary); 
+}
+
+/* 2. Cor de Seleção de Texto (Quando você seleciona com o mouse) */
+::selection {
+    background: var(--accent);
+    color: white;
+}
+
+/* 3. Animação Suave ao Carregar Módulos */
+.view-content {
+    animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 4. Inputs mais bonitos no foco */
+input:focus, select:focus, textarea:focus {
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+    border-color: var(--primary);
+}
+
+        /* --- CORREÇÕES FINAIS DE LAYOUT --- */
+
+        /* 1. Espaço extra no final para o conteúdo não ficar atrás do botão da IA */
+        @media (max-width: 768px) {
+        .view-content {
+        padding-bottom: 120px !important; /* Mais espaço no rodapé */
+        }
+
+        /* Ajuste para os cards não ficarem colados */
+        .col-4, .col-12 {
+        margin-bottom: 16px;
+        }
+        }
+
+        /* 2. Melhoria no Widget de Clima para não quebrar texto */
+        #weatherWidget {
+        background: rgba(0, 0, 0, 0.2) !important; /* Fundo mais escuro para leitura */
+        white-space: nowrap; /* Evita quebra de linha feia */
+        }
+
+        /* 3. Ajuste do texto de Saudação */
+        h2 {
+        line-height: 1.2;
         }
 
         /* --- MOBILE & RESPONSIVE --- */
