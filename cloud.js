@@ -9,75 +9,75 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 app.cloud = {
     user: null,
 
     async init() {
-        // Verifica sessão ativa
+        // Verifica sessão
         const { data } = await _supabase.auth.getSession();
         
         if (data.session) {
-            // SE TIVER LOGADO: Esconde login, carrega dados
             this.handleLoginSuccess(data.session.user);
         } else {
-            // SE NÃO TIVER LOGADO: Verifica se é convidado
             const isGuest = localStorage.getItem('fluxo_guest_mode');
             if (isGuest === 'true') {
                 app.hideLoginScreen();
-                console.log("Modo Convidado.");
-                app.cloud.updateUI(false); // UI de convidado
+                this.updateUI(false);
             } else {
-                // SE NEM CONVIDADO: Mostra tela de login (o CSS já mostra por padrão)
                 console.log("Aguardando Login...");
             }
         }
 
-        // Monitora mudanças (Login Google redireciona e cai aqui)
         _supabase.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_IN') {
-                this.handleLoginSuccess(session.user);
-            }
-            if (event === 'SIGNED_OUT') {
-                localStorage.removeItem('fluxo_guest_mode');
-                location.reload(); // Recarrega para bloquear a tela
-            }
+            if (event === 'SIGNED_IN') this.handleLoginSuccess(session.user);
+            if (event === 'SIGNED_OUT') this.handleLogoutCleanup();
         });
     },
 
     async handleLoginSuccess(user) {
         this.user = user;
-        console.log("Logado:", user.email);
         localStorage.removeItem('fluxo_guest_mode'); // Sai do modo convidado
         app.hideLoginScreen();
         this.updateUI(true);
+        
+        // CARREGA DADOS DA NUVEM (E SOBRESCREVE O LOCAL)
         await this.loadFromCloud();
-        // Renderiza o dashboard atualizado
+        
+        // Pega o nome do Google (se houver) para o Dashboard
+        if(user.user_metadata && user.user_metadata.full_name) {
+            app.userName = user.user_metadata.full_name.split(' ')[0]; // Primeiro nome
+        }
+        
+        // Atualiza a tela
         if(app.router) app.router(app.currentTab || 'dashboard');
+    },
+
+    handleLogoutCleanup() {
+        this.user = null;
+        app.state = {}; // ZERA O ESTADO NA MEMÓRIA
+        localStorage.removeItem('fluxo_v5'); // APAGA O DISCO LOCAL
+        localStorage.removeItem('fluxo_guest_mode');
+        location.reload(); // Recarrega para bloquear a tela
     },
 
     // --- LOGIN GOOGLE ---
     async loginGoogle() {
         const { data, error } = await _supabase.auth.signInWithOAuth({
             provider: 'google',
-            options: {
-                redirectTo: window.location.href // Volta para a mesma página
-            }
+            options: { redirectTo: window.location.href }
         });
         if (error) app.toast(error.message, 'error');
     },
 
-    // --- LOGIN EMAIL/SENHA ---
     async login(email, password) {
-        // Tenta logar
         let { data, error } = await _supabase.auth.signInWithPassword({ email, password });
         if (error) {
-            // Se falhar, tenta criar conta automaticamente (UX melhor)
-            app.toast("Tentando criar conta...", "info");
+            app.toast("Criando conta...", "info");
             const res = await _supabase.auth.signUp({ email, password });
             if (res.error) return app.toast(res.error.message, 'error');
             app.toast("Conta criada! Verifique seu e-mail.", "success");
-        } else {
-            app.toast("Entrando...", "success");
         }
     },
 
@@ -86,25 +86,39 @@ app.cloud = {
     },
 
     async save() {
-        if (!this.user) return; // Convidado não salva na nuvem
+        if (!this.user) return; 
+        // Salva na nuvem
         const { error } = await _supabase.from('user_state').upsert({ 
             id: this.user.id, data: app.state, updated_at: new Date()
         });
+        if (error) console.error("Erro ao salvar nuvem:", error);
     },
 
     async loadFromCloud() {
         if (!this.user) return;
-        const { data } = await _supabase.from('user_state').select('data').single();
+        app.toast("Sincronizando...", "info");
+
+        const { data, error } = await _supabase
+            .from('user_state')
+            .select('data')
+            .single();
+
         if (data && data.data) {
-            app.state = { ...app.state, ...data.data };
+            // AQUI É O PULO DO GATO:
+            // Sobrescrevemos o estado local com o da nuvem completamente
+            app.state = data.data; 
+            
+            // Salva no localStorage apenas para cache, mas a fonte da verdade é a nuvem
+            localStorage.setItem('fluxo_v5', JSON.stringify(app.state));
+            console.log("Dados baixados da nuvem.");
+        } else {
+            console.log("Nenhum dado na nuvem ainda. Iniciando novo perfil.");
         }
     },
 
     updateUI(isLoggedIn) {
         const container = document.querySelector('aside > div:last-child');
         if (!container) return;
-        
-        // Limpa botão antigo
         const oldBtn = document.getElementById('authBtn');
         if(oldBtn) oldBtn.remove();
 
@@ -114,13 +128,14 @@ app.cloud = {
         btn.style.textAlign = 'center';
 
         if (isLoggedIn) {
+            const name = this.user.user_metadata.full_name || this.user.email;
             btn.innerHTML = `
-                <div style="font-size:11px; color:var(--success); margin-bottom:5px">● ${this.user.email}</div>
+                <div style="font-size:11px; color:var(--success); margin-bottom:5px">● ${name}</div>
                 <button class="btn ghost danger" style="width:100%; font-size:12px" onclick="app.cloud.logout()">Sair</button>
             `;
         } else {
             btn.innerHTML = `
-                <div style="font-size:11px; color:var(--warning); margin-bottom:5px">● Modo Convidado</div>
+                <div style="font-size:11px; color:var(--warning); margin-bottom:5px">● Convidado</div>
                 <button class="btn ghost" style="width:100%; font-size:12px" onclick="app.cloud.logout()">Fazer Login</button>
             `;
         }
