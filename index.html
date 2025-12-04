@@ -6,10 +6,49 @@
     <title>FLUXO</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="manifest" href="manifest.json">
     
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+    <!-- TELA DE LOGIN / BLOQUEIO -->
+<div id="login-screen">
+    <div class="login-card">
+        <div style="margin-bottom: 20px;">
+    <i class="ph ph-infinity" style="font-size: 64px; color: #a855f7; text-shadow: 0 0 20px rgba(168, 85, 247, 0.5);"></i>
+</div>
+        <h1>Bem-vindo ao FLUXO</h1>
+        <p class="muted">O Sistema Operacional da sua produtividade.</p>
+        
+        <div style="margin-top: 30px; display: flex; flex-direction: column; gap: 12px;">
+            <button class="btn-google" onclick="app.cloud.loginGoogle()">
+                <img src="https://www.svgrepo.com/show/475656/google-color.svg" width="20">
+                Entrar com Google
+            </button>
+            
+            <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0;">
+                <div style="height: 1px; background: var(--border); flex: 1;"></div>
+                <span class="muted" style="font-size: 12px;">OU</span>
+                <div style="height: 1px; background: var(--border); flex: 1;"></div>
+            </div>
+
+            <form onsubmit="event.preventDefault(); app.cloud.login(this.email.value, this.pass.value)" style="display:flex; flex-direction:column; gap:10px">
+                <input name="email" placeholder="Seu E-mail" required style="background:rgba(0,0,0,0.2)">
+                <input name="pass" type="password" placeholder="Sua Senha" required style="background:rgba(0,0,0,0.2)">
+                <button type="submit" class="btn">Entrar / Criar Conta</button>
+            </form>
+
+            <button class="btn ghost" style="margin-top: 10px;" onclick="app.enterAsGuest()">
+                Continuar como Convidado (Offline)
+            </button>
+        </div>
+    </div>
+</div>
     
  <div id="overlay" class="overlay" onclick="app.toggleSidebar()"></div>
     <div id="app">
@@ -95,35 +134,36 @@
 
     <div id="toast-container"></div>
 
-    <script src="app.js"></script>
-    <script src="utils.js"></script>
-    <script src="dashboard.js"></script>
-    <script src="tasks.js"></script>
-    <script src="kanban.js"></script>
-    <script src="calendar.js"></script>
-    <script src="notes.js"></script>
-    <script src="habits.js"></script>
-    <script src="pomodoro.js"></script>
-    <script src="snippets.js"></script>
-    <script src="bookmarks.js"></script>
-    <script src="roadmap.js"></script>
-    <script src="vault.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/cloud.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/modules/dashboard.js"></script>
+    <script src="js/modules/tasks.js"></script>
+    <script src="js/modules/kanban.js"></script>
+    <script src="js/modules/calendar.js"></script>
+    <script src="js/modules/notes.js"></script>
+    <script src="js/modules/habits.js"></script>
+    <script src="js/modules/pomodoro.js"></script>
+    <script src="js/modules/snippets.js"></script>
+    <script src="js/modules/bookmarks.js"></script>
+    <script src="js/modules/roadmap.js"></script>
+    <script src="js/modules/vault.js"></script>
 
-    <script src="ai.js"></script>
+    <script src="js/ai.js"></script>
 
-    <script>
+<script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Pequeno delay para garantir que todos os scripts processaram
             setTimeout(() => {
-                if(window.app) {
-                    app.init();
-                } else {
-                    console.error("Erro crítico: Objeto 'app' não foi carregado.");
-                }
+                if(window.app) app.init();
             }, 100);
+
+            // Registro do PWA
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('Fluxo PWA Registrado!'))
+                .catch(err => console.error('Erro PWA:', err));
+            }
         });
     </script>
 </body>
 </html>
-
-
