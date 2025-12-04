@@ -97,6 +97,7 @@ const cloudModule = {
         // Limpa cache local do usuário
         localStorage.removeItem('fluxo_user_cache');
         localStorage.removeItem('fluxo_guest_mode');
+        localStorage.removeItem('fluxo_google_key');
         
         // Desloga no servidor
         if(_client) await _client.auth.signOut();
@@ -170,3 +171,4 @@ const bindCloud = setInterval(() => {
         clearInterval(bindCloud);
     }
 }, 100);
+
