@@ -8,7 +8,7 @@
 // CONFIGURAÇÕES
 // =================================================================
 let USER_API_KEY = localStorage.getItem("fluxo_google_key");
-const GEMINI_MODEL = "gemini-2.0-flash"; 
+const GEMINI_MODEL = "gemini-2.5-pro"; 
 // =================================================================
 
 const fluxoAI = {
