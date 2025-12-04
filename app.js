@@ -1,9 +1,9 @@
 /**
- * ARQUIVO: js/app.js
- * (Substitua todo o conteúdo anterior por este atualizado)
+ * ARQUIVO PRINCIPAL: js/app.js
+ * Gerencia o estado, rotas, inicialização e integração com a nuvem.
  */
 
-// 1. CONFIGURAÇÕES GLOBAIS (Constantes)
+// 1. CONFIGURAÇÕES GLOBAIS
 const VIEWS = {
     dashboard: { icon: 'ph-squares-four', label: 'Dashboard' },
     tasks:     { icon: 'ph-check-circle', label: 'Tarefas' },
@@ -18,7 +18,7 @@ const VIEWS = {
     vault:     { icon: 'ph-files', label: 'Vault (PDF)' }
 };
 
-// Adicionado aqui para ficar disponível globalmente
+// Configuração de Eventos (Global)
 const EV_CONFIG = {
     'meeting': { icon: 'ph-users', color: '#a855f7', label: 'Reunião' },
     'daily': { icon: 'ph-video-camera', color: '#3b82f6', label: 'Daily' },
@@ -26,6 +26,7 @@ const EV_CONFIG = {
     'other': { icon: 'ph-calendar-blank', color: '#94a3b8', label: 'Outro' }
 };
 
+// Estado Inicial Limpo
 const DEFAULT_STATE = {
     tasks: [],
     kanbanCols: [
@@ -45,16 +46,27 @@ const app = {
     calendarCursor: new Date(),
     currentBoardId: null,
     theme: 'dark',
+    currentTab: 'dashboard',
 
     init() {
-        console.log("Iniciando FLUXO..."); // Log para debug
+        console.log("Iniciando FLUXO OS...");
+        
+        // Carrega configurações locais
         this.loadState();
         this.loadTheme();
         this.renderMenu();
-        this.router('dashboard'); // Renderiza a primeira tela
-        this.updateStorageStats();
         
-        // Listeners globais
+        // Inicializa Atalhos de Teclado
+        this.initShortcuts();
+
+        // Inicializa Nuvem (Login/Supabase) se o módulo existir
+        if (this.cloud) this.cloud.init();
+
+        // Renderiza a primeira tela (por trás do login)
+        this.router('dashboard');
+        this.updateStorageStats();
+
+        // Listeners globais de UI
         const modal = document.getElementById('modal');
         if(modal) modal.addEventListener('click', (e) => {
             if (e.target.id === 'modal') this.closeModal();
@@ -70,46 +82,61 @@ const app = {
     loadState() {
         const raw = localStorage.getItem('fluxo_v5');
         this.state = raw ? { ...DEFAULT_STATE, ...JSON.parse(raw) } : JSON.parse(JSON.stringify(DEFAULT_STATE));
-        if(!this.state.boards.length && this.seedKanban) this.seedKanban();
-        this.currentBoardId = this.state.boards[0]?.id || null;
+        
+        // Garante que tenha pelo menos 1 board se estiver vazio
+        if(!this.state.boards || this.state.boards.length === 0) {
+            const bid = this.uid();
+            this.state.boards = [{ id: bid, title: 'Projeto Principal' }];
+            this.currentBoardId = bid;
+        } else {
+            this.currentBoardId = this.state.boards[0].id;
+        }
     },
 
     saveState() {
         try {
+            // 1. Salva Localmente (Backup e Modo Convidado)
             localStorage.setItem('fluxo_v5', JSON.stringify(this.state));
+            
+            // 2. Salva na Nuvem (Se estiver logado)
+            if(this.cloud) this.cloud.save();
+
             this.updateStorageStats();
         } catch (e) {
             if(this.toast) this.toast('Erro ao salvar (Storage cheio)', 'error');
         }
     },
 
+    // --- ROTEAMENTO ---
     router(viewName) {
         this.currentTab = viewName;
         const conf = VIEWS[viewName];
         if(!conf) return;
         
+        // Atualiza Títulos
         const titleEl = document.getElementById('pageTitle');
         const subEl = document.getElementById('pageSub');
         if(titleEl) titleEl.innerText = conf.label;
         if(subEl) subEl.innerText = viewName === 'dashboard' ? 'Bem-vindo de volta.' : `Gerenciamento de ${conf.label}`;
         
+        // Atualiza Menu Ativo
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         const btn = document.querySelector(`button[data-view="${viewName}"]`);
         if(btn) btn.classList.add('active');
 
+        // Renderiza Conteúdo
         const root = document.getElementById('content');
         if(!root) return;
-        root.innerHTML = '';
+        root.innerHTML = ''; // Limpa tela anterior
         
-        // VERIFICAÇÃO DE SEGURANÇA
         if (typeof this[`render_${viewName}`] === 'function') {
             this[`render_${viewName}`](root);
         } else {
-            root.innerHTML = `<div style="padding:20px; text-align:center; color:#94a3b8">Módulo <b>${conf.label}</b> ainda não carregado ou não implementado.</div>`;
-            console.warn(`Função render_${viewName} não encontrada no objeto app.`);
+            root.innerHTML = `<div style="padding:40px; text-align:center;" class="muted">Módulo <b>${conf.label}</b> carregando...</div>`;
         }
     },
     
+    // --- UI HELPERS ---
     renderMenu() {
         const menu = document.getElementById('menu');
         if(!menu) return;
@@ -152,11 +179,72 @@ const app = {
     updateStorageStats() {
         try {
             const used = new Blob([JSON.stringify(this.state)]).size;
+            // Considerando 5MB padrão de localStorage
             const pct = Math.min(100, (used/5000000)*100).toFixed(1);
             const sizeEl = document.getElementById('storageSize');
             const barEl = document.getElementById('storageBar');
             if(sizeEl) sizeEl.innerText = `${pct}%`;
             if(barEl) barEl.style.width = `${pct}%`;
         } catch(e) {}
+    },
+
+    // --- CONTROLE DE ACESSO (Login/Guest) ---
+    
+    enterAsGuest() {
+        localStorage.setItem('fluxo_guest_mode', 'true');
+        this.hideLoginScreen();
+        // Atualiza a sidebar para mostrar que é convidado
+        if(this.cloud) this.cloud.updateUI(false);
+        this.toast("Modo Convidado (Dados locais apenas)");
+    },
+
+    hideLoginScreen() {
+        const screen = document.getElementById('login-screen');
+        if (screen) {
+            screen.classList.add('hidden');
+            setTimeout(() => screen.style.display = 'none', 500); // Espera animação CSS
+        }
+    },
+
+    // --- ATALHOS DE TECLADO ---
+    initShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Ignora se estiver digitando em campos de texto
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                if(e.key === 'Escape') this.closeModal(); 
+                return;
+            }
+
+            // Atalhos com ALT
+            if (e.altKey) {
+                switch(e.key.toLowerCase()) {
+                    case 't': // Nova Tarefa
+                        e.preventDefault();
+                        this.router('tasks');
+                        setTimeout(() => document.getElementById('newTask')?.focus(), 200);
+                        break;
+                    case 'n': // Nova Nota
+                        e.preventDefault();
+                        this.router('notes');
+                        setTimeout(() => this.newNote(), 200);
+                        break;
+                    case 'e': // Novo Evento
+                        e.preventDefault();
+                        this.router('calendar');
+                        setTimeout(() => this.addEventPrompt(), 200);
+                        break;
+                    case '1': this.router('dashboard'); break;
+                    case '2': this.router('tasks'); break;
+                    case '3': this.router('kanban'); break;
+                    case '4': this.router('calendar'); break;
+                }
+            }
+
+            if (e.key === 'Escape') {
+                this.closeModal();
+                document.getElementById('sidebar')?.classList.remove('open');
+                document.getElementById('overlay')?.classList.remove('show');
+            }
+        });
     }
 };
