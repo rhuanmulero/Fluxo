@@ -121,9 +121,17 @@ app.render_tasks = (root) => {
                 
                 <div class="task-row-2" style="display:flex; gap:10px; align-items:center;">
                     <input id="newDate" type="date" style="flex:1">
-                    <!-- INPUT NUMÉRICO DE HORAS -->
+                    <!-- INPUT NUMÉRICO DE HORAS -->  
                     <input id="newEst" type="number" step="0.5" min="0" placeholder="Horas (h)" style="width:100px" title="Estimativa em horas">
-                    
+  
+                    <select id="newRecur" style="width:100px; border-color:var(--accent); color:var(--accent)">
+                    <option value="">Única</option>
+                    <option value="daily">Diária</option>
+                    <option value="weekly">Semanal</option>
+                    <option value="monthly">Mensal</option>
+                    </select>
+
+                    <!-- ...inputs de responsável... -->
                     <input id="newResp" placeholder="Resp." style="flex:1">
                     <select id="newType" style="flex:1"><option value="">Tipo...</option><option>Feature</option><option>Bug</option><option>Conteúdo</option><option>Admin</option></select>
                     <select id="newPrio" style="width:100px"><option>Baixa</option><option selected>Média</option><option>Alta</option></select>
@@ -158,11 +166,14 @@ app.render_tasks = (root) => {
     taskSearchInput.oninput = applyFilterAndSort;
     taskSortSelect.onchange = applyFilterAndSort;
     
+    // Evento de Clique no Botão "Add"
     document.getElementById('addT').onclick = () => {
         const title = document.getElementById('newTask').value;
         const boardId = document.getElementById('newBoard').value;
         
         if(!title) return app.toast("O título é obrigatório", "error");
+        
+        // Validação opcional de projeto (pode remover se quiser permitir tarefas sem projeto)
         if(!boardId && app.state.boards && app.state.boards.length > 0) {
             app.toast('Selecione um Projeto.', 'error');
             return;
@@ -173,17 +184,27 @@ app.render_tasks = (root) => {
         const estimate = estVal ? parseFloat(estVal) : '';
 
         const newTask = { 
-            id: app.uid(), title, boardId,
+            id: app.uid(), 
+            title, 
+            boardId,
             deadline: document.getElementById('newDate').value,
-            estimate: estimate, // Salva como número
+            estimate: estimate, 
             responsible: document.getElementById('newResp').value,
             type: document.getElementById('newType').value,
             priority: document.getElementById('newPrio').value,
-            done: false, progress: 0, inKanban: false 
+            
+            // --- NOVA PROPRIEDADE AQUI ---
+            recurrence: document.getElementById('newRecur').value, 
+            // -----------------------------
+
+            done: false, 
+            progress: 0, 
+            inKanban: false 
         };
 
         app.state.tasks.unshift(newTask);
         
+        // Sincroniza com o calendário se tiver data
         if(newTask.deadline && app.syncToCalendar) {
             app.syncToCalendar(newTask.id, newTask.title, newTask.deadline);
         }
@@ -191,8 +212,10 @@ app.render_tasks = (root) => {
         app.saveState(); 
         renderList(); 
         
+        // Limpa os campos após adicionar
         document.getElementById('newTask').value = '';
-        document.getElementById('newEst').value = ''; // Limpa estimativa
+        document.getElementById('newEst').value = ''; 
+        document.getElementById('newRecur').value = ''; // Limpa o seletor de recorrência
     };
 
     renderList();
@@ -284,12 +307,53 @@ app.editTaskPrompt = (id) => {
 // (Elas já estão no objeto 'app' global, então não precisam ser reescritas aqui se já foram carregadas, 
 // mas para garantir, é bom que estejam no arquivo).
 app.toggleTask = (id) => { 
-    const t = app.state.tasks.find(x=>x.id===id); 
+    const t = app.state.tasks.find(x => x.id === id); 
     if(t) { 
+        // Lógica de Recorrência
+        if (!t.done && t.recurrence) {
+            // Se está marcando como feita e tem recorrência, cria a próxima
+            const nextDate = new Date();
+            // Se tiver data de hoje, usa ela, senão usa hoje
+            const baseDate = t.deadline ? new Date(t.deadline) : new Date();
+
+            if (t.recurrence === 'daily') baseDate.setDate(baseDate.getDate() + 1);
+            if (t.recurrence === 'weekly') baseDate.setDate(baseDate.getDate() + 7);
+            if (t.recurrence === 'monthly') baseDate.setMonth(baseDate.getMonth() + 1);
+
+            const nextIso = baseDate.toISOString().slice(0, 10);
+
+            // Cria o clone para o futuro
+            const newTask = {
+                ...t,
+                id: app.uid(),
+                deadline: nextIso,
+                done: false,
+                progress: 0,
+                inKanban: false // Geralmente não joga recorrente direto pro kanban pra não poluir
+            };
+            
+            app.state.tasks.unshift(newTask);
+            
+            // Sincroniza a nova tarefa com a agenda
+            if(newTask.deadline && app.syncToCalendar) {
+                app.syncToCalendar(newTask.id, newTask.title, newTask.deadline);
+            }
+            
+            app.toast(`Próxima ocorrência criada para: ${nextIso.slice(8,10)}/${nextIso.slice(5,7)}`, 'success');
+        }
+
+        // Marca a atual como feita
         t.done = !t.done; 
         t.progress = t.done ? 100 : 0; 
+        
+        // Atualiza Kanban vinculado (apenas da atual)
         const c = app.state.cards.find(c => c.originId === t.id);
-        if(c) { c.progress = t.progress; if(t.done) c.col='done'; if(!t.done && c.col==='done') c.col='todo'; }
+        if(c) { 
+            c.progress = t.progress; 
+            if(t.done) c.col='done'; 
+            if(!t.done && c.col==='done') c.col='todo'; 
+        }
+        
         app.saveState(); 
         if(app.currentTab === 'tasks') app.render_tasks(document.getElementById('content'));
     }
