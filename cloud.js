@@ -1,129 +1,172 @@
 /**
- * Módulo de Nuvem (Supabase Integration) - CORRIGIDO
- * Arquivo: js/cloud.js
+ * Módulo de Nuvem (CORRIGIDO V3)
  */
 
-// COLE SUAS CHAVES AQUI NOVAMENTE
-const SUPABASE_URL = 'https://sxucayghtnwqusovqnky.supabase.co'; 
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4dWNheWdodG53cXVzb3Zxbmt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ4Mzc5NDUsImV4cCI6MjA4MDQxMzk0NX0._gWvp26nFVXY82fa_Rq0rg3sm4O8ZF1BIiLN4Q80cYg'; 
+console.log("☁️ Carregando Cloud...");
 
-const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// 1. CRIA UM "DUMMY" TEMPORÁRIO
+// Isso garante que o botão no HTML nunca dê erro de "undefined", mesmo se o script quebrar depois.
+if (typeof window.app !== 'undefined') {
+    window.app.cloud = {
+        loginGoogle: () => alert("⚠️ O sistema de Nuvem não iniciou. Verifique se colou as CHAVES no arquivo cloud.js!"),
+        init: () => console.warn("Cloud aguardando configuração..."),
+        updateUI: () => {}
+    };
+}
 
-app.cloud = {
+// COLOQUE SUAS CHAVES AQUI
+const SB_URL = 'https://sxucayghtnwqusovqnky.supabase.co'; 
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4dWNheWdodG53cXVzb3Zxbmt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ4Mzc5NDUsImV4cCI6MjA4MDQxMzk0NX0._gWvp26nFVXY82fa_Rq0rg3sm4O8ZF1BIiLN4Q80cYg'; 
+
+let _client = null;
+
+try {
+    if (SB_URL.includes('COLE_SUA')) console.error("❌ Chaves não configuradas.");
+    
+    _client = window.supabase.createClient(SB_URL, SB_KEY);
+    console.log("✅ Supabase Conectado.");
+
+} catch (err) {
+    console.error("❌ ERRO CLOUD:", err);
+}
+
+const cloudModule = {
     user: null,
 
     async init() {
-        // Verifica sessão ativa
-        const { data } = await _supabase.auth.getSession();
+        if (!_client) return;
+
+        // 1. Verifica se JÁ existe uma sessão salva (Corrige o problema do F5)
+        const { data } = await _client.auth.getSession();
         
-        if (data.session) {
-            // SE TIVER LOGADO: Esconde login, carrega dados
+        if (data?.session) {
+            console.log("🔄 Sessão restaurada.");
             this.handleLoginSuccess(data.session.user);
         } else {
-            // SE NÃO TIVER LOGADO: Verifica se é convidado
-            const isGuest = localStorage.getItem('fluxo_guest_mode');
-            if (isGuest === 'true') {
-                app.hideLoginScreen();
-                console.log("Modo Convidado.");
-                app.cloud.updateUI(false); // UI de convidado
-            } else {
-                // SE NEM CONVIDADO: Mostra tela de login (o CSS já mostra por padrão)
-                console.log("Aguardando Login...");
-            }
+            console.log("🔒 Nenhum usuário. Tela bloqueada.");
+            // Não faz nada, deixa a tela de login aparecer (que é o padrão do HTML)
+            // Apenas remove o modo convidado antigo se existir
+            localStorage.removeItem('fluxo_guest_mode');
+            this.updateUI(false);
         }
 
-        // Monitora mudanças (Login Google redireciona e cai aqui)
-        _supabase.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_IN') {
+        // 2. Escuta eventos de Login (Google redirect cai aqui)
+        _client.auth.onAuthStateChange((evt, session) => {
+            if (evt === 'SIGNED_IN' && session) {
                 this.handleLoginSuccess(session.user);
             }
-            if (event === 'SIGNED_OUT') {
-                localStorage.removeItem('fluxo_guest_mode');
-                location.reload(); // Recarrega para bloquear a tela
+            if (evt === 'SIGNED_OUT') {
+                window.location.reload();
             }
         });
+    },
+
+    async loginGoogle() {
+        if (!_client) return alert("Erro de configuração.");
+        const { error } = await _client.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: window.location.origin + window.location.pathname }
+        });
+        if (error) alert("Erro Google: " + error.message);
     },
 
     async handleLoginSuccess(user) {
         this.user = user;
-        console.log("Logado:", user.email);
-        localStorage.removeItem('fluxo_guest_mode'); // Sai do modo convidado
-        app.hideLoginScreen();
-        this.updateUI(true);
-        await this.loadFromCloud();
-        // Renderiza o dashboard atualizado
-        if(app.router) app.router(app.currentTab || 'dashboard');
-    },
+        
+        // --- LIMPEZA DA URL (CORREÇÃO DA URL GIGANTE) ---
+        // Remove o #access_token... da barra de endereço sem recarregar
+        if (window.location.hash && window.location.hash.includes('access_token')) {
+            window.history.replaceState(null, '', window.location.pathname);
+        }
+        // ------------------------------------------------
 
-    // --- LOGIN GOOGLE ---
-    async loginGoogle() {
-        const { data, error } = await _supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-                redirectTo: window.location.href // Volta para a mesma página
-            }
-        });
-        if (error) app.toast(error.message, 'error');
-    },
-
-    // --- LOGIN EMAIL/SENHA ---
-    async login(email, password) {
-        // Tenta logar
-        let { data, error } = await _supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-            // Se falhar, tenta criar conta automaticamente (UX melhor)
-            app.toast("Tentando criar conta...", "info");
-            const res = await _supabase.auth.signUp({ email, password });
-            if (res.error) return app.toast(res.error.message, 'error');
-            app.toast("Conta criada! Verifique seu e-mail.", "success");
-        } else {
-            app.toast("Entrando...", "success");
+        if(window.app) {
+            if(user.user_metadata?.full_name) app.userName = user.user_metadata.full_name.split(' ')[0];
+            
+            // Libera o app
+            app.hideLoginScreen();
+            this.updateUI(true);
+            
+            // Carrega dados
+            this.loadFromCloud();
         }
     },
 
     async logout() {
-        await _supabase.auth.signOut();
+        console.log("Saindo...");
+        // Limpa cache local do usuário
+        localStorage.removeItem('fluxo_user_cache');
+        localStorage.removeItem('fluxo_guest_mode');
+        
+        // Desloga no servidor
+        if(_client) await _client.auth.signOut();
+        
+        // Recarrega para bloquear
+        window.location.reload();
     },
 
     async save() {
-        if (!this.user) return; // Convidado não salva na nuvem
-        const { error } = await _supabase.from('user_state').upsert({ 
+        if(!this.user || !_client) return;
+        // Salva estado
+        await _client.from('user_state').upsert({ 
             id: this.user.id, data: app.state, updated_at: new Date()
         });
     },
 
     async loadFromCloud() {
-        if (!this.user) return;
-        const { data } = await _supabase.from('user_state').select('data').single();
-        if (data && data.data) {
+        if(!this.user || !_client) return;
+        
+        const { data } = await _client.from('user_state').select('data').single();
+        
+        if(data?.data && window.app) {
             app.state = { ...app.state, ...data.data };
+            // Atualiza cache local para o próximo F5 ser rápido
+            localStorage.setItem('fluxo_user_cache', JSON.stringify(app.state));
+            
+            if(app.router) app.router('dashboard');
+            if(app.fetchWeather) app.fetchWeather();
         }
     },
 
     updateUI(isLoggedIn) {
         const container = document.querySelector('aside > div:last-child');
         if (!container) return;
+        const existing = document.getElementById('authBtn');
+        if(existing) existing.remove();
+
+        const div = document.createElement('div');
+        div.id = 'authBtn';
+        div.style.textAlign = 'center';
+        div.style.marginTop = '15px';
         
-        // Limpa botão antigo
-        const oldBtn = document.getElementById('authBtn');
-        if(oldBtn) oldBtn.remove();
-
-        const btn = document.createElement('div');
-        btn.id = 'authBtn';
-        btn.style.marginTop = '10px';
-        btn.style.textAlign = 'center';
-
-        if (isLoggedIn) {
-            btn.innerHTML = `
-                <div style="font-size:11px; color:var(--success); margin-bottom:5px">● ${this.user.email}</div>
-                <button class="btn ghost danger" style="width:100%; font-size:12px" onclick="app.cloud.logout()">Sair</button>
+        if(isLoggedIn) {
+            // Mostra nome ou email
+            const name = app.userName || (this.user?.email ? this.user.email.split('@')[0] : 'Usuário');
+            div.innerHTML = `
+                <div style="font-size:11px; color:var(--success); margin-bottom:5px">● ${name}</div>
+                <button class="btn ghost danger" style="font-size:12px; width:100%" onclick="app.cloud.logout()">Sair</button>
             `;
         } else {
-            btn.innerHTML = `
-                <div style="font-size:11px; color:var(--warning); margin-bottom:5px">● Modo Convidado</div>
-                <button class="btn ghost" style="width:100%; font-size:12px" onclick="app.cloud.logout()">Fazer Login</button>
-            `;
+            div.innerHTML = `<button class="btn ghost" style="font-size:12px; width:100%" onclick="location.reload()">Login</button>`;
         }
-        container.appendChild(btn);
+        container.appendChild(div);
+    },
+
+    async login(e, p) {
+        if (!_client) return;
+        const { error } = await _client.auth.signInWithPassword({ email:e, password:p });
+        if(error) {
+            const res = await _client.auth.signUp({ email:e, password:p });
+            if(res.error) alert(res.error.message);
+            else alert("Conta criada! Verifique seu e-mail.");
+        }
     }
 };
+
+// Vincula ao App
+const bindCloud = setInterval(() => {
+    if (typeof window.app !== 'undefined') {
+        window.app.cloud = cloudModule;
+        clearInterval(bindCloud);
+    }
+}, 100);
