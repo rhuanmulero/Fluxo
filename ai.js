@@ -97,10 +97,12 @@ const fluxoAI = {
 
     // --- CÉREBRO PRINCIPAL (GEMINI) ---
     async callGemini(userMessage) {
+        const userName = app.userName || "Chefe"; 
         const contextData = JSON.stringify(this.getContext());
 
         const systemInstruction = `
             Você é Nami, a IA central do sistema FLUXO.
+            O nome do usuário é: ${userName}. Use esse nome para se dirigir a ele de forma amigável.
             
             SUA PERSONALIDADE:
             - Você é uma aliada leal e eficiente, estilo J.A.R.V.I.S., mas com mais calor humano.
