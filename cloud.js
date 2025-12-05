@@ -94,10 +94,14 @@ const cloudModule = {
 
     async logout() {
         console.log("Saindo...");
-        // Limpa cache local do usuário
+        
+        // LIMPEZA GERAL DE SEGURANÇA
         localStorage.removeItem('fluxo_user_cache');
         localStorage.removeItem('fluxo_guest_mode');
-        localStorage.removeItem('fluxo_google_key');
+        localStorage.removeItem('fluxo_google_key'); // <--- ADICIONE ESTA LINHA (Remove a API Key)
+        
+        if(_client) _client.auth.signOut().catch(console.warn);
+        window.location.reload();
         
         // Desloga no servidor
         if(_client) await _client.auth.signOut();
@@ -129,26 +133,34 @@ const cloudModule = {
         }
     },
 
-    updateUI(isLoggedIn) {
+updateUI(isLoggedIn) {
         const container = document.querySelector('aside > div:last-child');
         if (!container) return;
+        
         const existing = document.getElementById('authBtn');
         if(existing) existing.remove();
 
         const div = document.createElement('div');
         div.id = 'authBtn';
         div.style.textAlign = 'center';
-        div.style.marginTop = '15px';
+        div.style.marginTop = '15px'; // Um pouco de espaço do storage
         
         if(isLoggedIn) {
-            // Mostra nome ou email
+            // Logado: Mostra nome pequeno e Link de Sair (Estilo Minimalista)
             const name = app.userName || (this.user?.email ? this.user.email.split('@')[0] : 'Usuário');
+            
             div.innerHTML = `
-                <div style="font-size:11px; color:var(--success); margin-bottom:5px">● ${name}</div>
-                <button class="btn ghost danger" style="font-size:12px; width:100%" onclick="app.cloud.logout()">Sair</button>
+                <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px">
+                    Olá, <span style="color:var(--text-main); font-weight:600">${name}</span>
+                </div>
+                
+                <a onclick="app.cloud.logout()" style="color: #ef4444; text-decoration: none; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; transition: opacity 0.2s" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                    <i class="ph ph-sign-out"></i> Sair
+                </a>
             `;
         } else {
-            div.innerHTML = `<button class="btn ghost" style="font-size:12px; width:100%" onclick="location.reload()">Login</button>`;
+            // Deslogado: Botão normal para chamar atenção
+            div.innerHTML = `<button class="btn ghost" style="font-size:12px; width:100%" onclick="location.reload()">Fazer Login</button>`;
         }
         container.appendChild(div);
     },
@@ -171,4 +183,3 @@ const bindCloud = setInterval(() => {
         clearInterval(bindCloud);
     }
 }, 100);
-
