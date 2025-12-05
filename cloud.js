@@ -92,7 +92,7 @@ const cloudModule = {
         }
     },
 
-    async logout() {
+async logout() {
         console.log("Saindo...");
         
         // 1. Limpeza de dados locais do FLUXO
@@ -108,7 +108,6 @@ const cloudModule = {
         // 3. Só agora recarrega a página
         window.location.reload();
     },
-
     async save() {
         if(!this.user || !_client) return;
         // Salva estado
@@ -182,4 +181,3 @@ const bindCloud = setInterval(() => {
         clearInterval(bindCloud);
     }
 }, 100);
-
