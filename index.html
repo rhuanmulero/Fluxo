@@ -12,6 +12,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,9 +26,8 @@
         <h1>Bem-vindo ao FLUXO</h1>
         <p class="muted">O Sistema Operacional da sua produtividade.</p>
         
-        <div style="margin-top: 30px; display: flex; flex-direction: column; gap: 12px;">
-            <button class="btn-google" onclick="app.cloud.loginGoogle()">
-                <img src="https://www.svgrepo.com/show/475656/google-color.svg" width="20">
+        <button type="button" class="btn-google" onclick="console.log('Cliquei Google'); app.cloud.loginGoogle()">
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" width="20">
                 Entrar com Google
             </button>
             
@@ -55,9 +55,11 @@
         <!-- Sidebar -->
         <aside id="sidebar">
             <div class="brand">
-                <div style="display:flex; align-items:center; gap:10px">
-                    <i class="ph ph-infinity" style="color: #a855f7;"></i> FLUXO
-                </div>
+                <div style="display:flex; align-items:center; gap:10px; justify-content: center; width: 100%;">
+                    <i class="ph ph-infinity" style="color: #a855f7; font-size: 28px;"></i> 
+                <!-- O texto PRECISA estar no span para o CSS esconder -->
+                <span style="font-weight: 800; background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">FLUXO</span>
+            </div>
                 <button class="btn ghost" style="width:36px; padding:0;" onclick="app.toggleTheme()" title="Mudar Tema">
                     <i id="themeIcon" class="ph ph-moon"></i>
                 </button>
@@ -71,25 +73,31 @@
                 <div style="width:100%; height:4px; background:var(--bg-hover); border-radius:2px; margin-top:6px;">
                     <div id="storageBar" style="width:0%; height:100%; background:var(--accent); border-radius:2px;"></div>
                 </div>
-                <div style="margin-top: 15px; text-align: center;">
-                    <a href="#" style="color: var(--danger); text-decoration: none; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 5px;">
-                        <i class="ph ph-sign-out"></i> Sair
-                    </a>
-                </div>
             </div>
         </aside>
 
         <!-- Main Content -->
         <main>
             <header>
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <button class="menu-toggle" onclick="app.toggleSidebar()"><i class="ph ph-list"></i></button>
-                    <div>
-                        <h1 id="pageTitle" style="margin:0; font-size:20px; font-weight:700;">Dashboard</h1>
-                        <div id="pageSub" class="muted" style="display:none; @media(min-width:768px){display:block}">Visão geral do sistema</div>
-                    </div>
-                </div>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <!-- Botão Mobile (Já existia) -->
+        <button class="menu-toggle" onclick="app.toggleSidebar()"><i class="ph ph-list"></i></button>
+        
+        <!-- NOVO: Botão Desktop (Aparece só no PC) -->
+        <button class="btn ghost desktop-only" onclick="app.toggleSidebarDesktop()" style="padding: 8px;" title="Recolher Menu">
+            <i class="ph ph-arrows-left-right"></i>
+        </button>
+
+        <div>
+            <h1 id="pageTitle" style="margin:0; font-size:20px; font-weight:700;">Dashboard</h1>
+            <div id="pageSub" class="muted" style="display:none; @media(min-width:768px){display:block}">Visão geral</div>
+        </div>
+    </div>
                 <div style="display: flex; gap: 10px;">
+    <!-- NOVO: Botão de Atalhos -->
+    <button class="btn ghost" onclick="app.showShortcutsHelp()" title="Atalhos de Teclado (Shift+?)">
+        <i class="ph ph-keyboard"></i>
+    </button>
                     <button class="btn ghost" onclick="app.exportData()"><i class="ph ph-download-simple"></i> <span style="display:none; @media(min-width:768px){display:inline}">Backup</span></button>
                     <button class="btn ghost" onclick="document.getElementById('importFile').click()"><i class="ph ph-upload-simple"></i> <span style="display:none; @media(min-width:768px){display:inline}">Restaurar</span></button>
                     <input type="file" id="importFile" hidden onchange="app.importData(this)">
@@ -134,37 +142,40 @@
 
     <div id="toast-container"></div>
 
-    <script src="app.js"></script>
-    <script src="cloud.js"></script>
-    <script src="utils.js"></script>
-    <script src="dashboard.js"></script>
-    <script src="tasks.js"></script>
-    <script src="kanban.js"></script>
-    <script src="calendar.js"></script>
-    <script src="notes.js"></script>
-    <script src="habits.js"></script>
-    <script src="pomodoro.js"></script>
-    <script src="snippets.js"></script>
-    <script src="bookmarks.js"></script>
-    <script src="roadmap.js"></script>
-    <script src="vault.js"></script>
+<!-- 1. BIBLIOTECA -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <script src="ai.js"></script>
+<!-- 2. CRIA O APP (Obrigatório vir antes do cloud) -->
+<script src="js/app.js"></script>
+<script src="js/utils.js"></script>
 
-<script>
+<!-- 3. CARREGA O CLOUD (Adiciona funções ao app) -->
+<script src="js/cloud.js"></script>
+
+    <!-- 5. MÓDULOS -->
+    <script src="js/modules/dashboard.js"></script>
+    <script src="js/modules/tasks.js"></script>
+    <script src="js/modules/kanban.js"></script>
+    <script src="js/modules/calendar.js"></script>
+    <script src="js/modules/notes.js"></script>
+    <script src="js/modules/habits.js"></script>
+    <script src="js/modules/pomodoro.js"></script>
+    <script src="js/modules/snippets.js"></script>
+    <script src="js/modules/bookmarks.js"></script>
+    <script src="js/modules/roadmap.js"></script>
+    <script src="js/modules/vault.js"></script>
+
+    <!-- 6. IA -->
+    <script src="js/ai.js"></script>
+
+    <!-- 7. INICIALIZAÇÃO -->
+    <script>
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 if(window.app) app.init();
-            }, 100);
-
-            // Registro do PWA
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js')
-                .then(() => console.log('Fluxo PWA Registrado!'))
-                .catch(err => console.error('Erro PWA:', err));
-            }
+            }, 500); // Dei um tempo maior para garantir
         });
     </script>
 </body>
+</body>
 </html>
-
