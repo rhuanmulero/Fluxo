@@ -1,161 +1,246 @@
 /**
- * Módulo Bookmarks (Sem Estrelas, Com Rastreamento de Uso)
+ * Módulo de Calendário (Com Limite de Visualização e Modal de Detalhes)
+ * Arquivo: js/modules/calendar.js
  */
 
-app.render_bookmarks = (root) => {
-    if (!app.bmCurrentFolder) app.bmCurrentFolder = null;
-    if (typeof app.bmSearch === 'undefined') app.bmSearch = "";
-
-    root.innerHTML = `
-        <div class="grid">
-            <div class="col-12">
-                <div class="card" style="margin-bottom: 20px; padding: 15px; display:flex; gap:10px; align-items:center;">
-                    <i class="ph ph-magnifying-glass muted"></i>
-                    <input id="bmSearchInput" placeholder="Buscar bookmarks..." style="border:none; background:transparent; flex:1; font-size:16px;" value="${app.bmSearch}">
-                    <button class="btn" onclick="app.addBookmarkPrompt()">+ Novo Link</button>
-                </div>
-                <div id="bmContainer"></div>
-            </div>
-        </div>
-    `;
-
-    const searchInput = document.getElementById('bmSearchInput');
-    searchInput.addEventListener('input', (e) => {
-        app.bmSearch = e.target.value;
-        app.renderBookmarkList();
-    });
-    app.renderBookmarkList();
+app.calNav = (dir) => {
+    app.calendarCursor.setMonth(app.calendarCursor.getMonth() + dir);
+    const content = document.getElementById('content');
+    if (content) app.render_calendar(content);
 };
 
-app.renderBookmarkList = () => {
-    const container = document.getElementById('bmContainer');
-    if (!container) return;
+// --- NOVO: MODAL DE DETALHES DO DIA (QUANDO TEM MUITOS EVENTOS) ---
+app.openDayDetails = (dateStr) => {
+    // Busca eventos do dia
+    const events = app.state.events
+        .filter(e => e.date === dateStr)
+        .sort((a,b) => (a.time || '').localeCompare(b.time || ''));
 
-    const folders = {};
-    const uncategorized = [];
-    const isSearching = app.bmSearch.length > 0;
+    // Config de cores
+    const config = (typeof EV_CONFIG !== 'undefined') ? EV_CONFIG : { 'other': { label: 'Outro', color: '#94a3b8' } };
+    
+    // Formata a data para título
+    const dateObj = new Date(dateStr + 'T12:00:00'); // Fix timezone
+    const dateTitle = dateObj.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 
-    app.state.bookmarks.forEach(b => {
-        if (isSearching && !b.title.toLowerCase().includes(app.bmSearch.toLowerCase())) return;
-        const cat = b.category || 'Geral';
-        if (cat === 'Geral' || isSearching) uncategorized.push(b);
-        else {
-            if (!folders[cat]) folders[cat] = [];
-            folders[cat].push(b);
-        }
-    });
-
-    let html = '';
-
-    if (app.bmCurrentFolder && !isSearching) {
-        const links = folders[app.bmCurrentFolder] || [];
-        html = `
-            <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
-                <button class="btn ghost" onclick="app.bmCurrentFolder=null; app.renderBookmarkList()"><i class="ph ph-arrow-left"></i> Voltar</button>
-                <h2>${app.bmCurrentFolder}</h2>
-            </div>
-            <div style="display:flex; flex-direction:column; gap:10px">
-                ${links.map(b => app.createBookmarkRow(b)).join('')}
-                ${links.length === 0 ? '<div class="muted">Pasta vazia.</div>' : ''}
-            </div>
-        `;
-    } else {
-        const folderKeys = Object.keys(folders).sort();
-        if (folderKeys.length > 0 && !isSearching) {
-            html += `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:15px; margin-bottom:30px;">`;
-            html += folderKeys.map(cat => `
-                <div onclick="app.bmCurrentFolder='${cat}'; app.renderBookmarkList()" 
-                     style="background:var(--bg-card); border:1px solid var(--border); padding:20px; border-radius:12px; text-align:center; cursor:pointer;"
-                     onmouseover="this.style.borderColor='var(--accent)'" 
-                     onmouseout="this.style.borderColor='var(--border)'">
-                    <i class="ph ph-folder-simple-star" style="font-size:48px; color:var(--accent); margin-bottom:10px; display:block"></i>
-                    <div style="font-weight:600">${cat}</div>
-                    <div class="muted" style="font-size:11px">${folders[cat].length} links</div>
-                </div>
-            `).join('');
-            html += `</div>`;
-        }
-        if (uncategorized.length > 0) {
-            html += `<div style="display:flex; flex-direction:column; gap:10px">`;
-            html += uncategorized.map(b => app.createBookmarkRow(b)).join('');
-            html += `</div>`;
-        }
-    }
-    container.innerHTML = html;
-};
-
-app.createBookmarkRow = (b) => {
-    return `
-    <div style="display:flex; align-items:center; gap:15px; padding:12px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid transparent; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--border)'" onmouseout="this.style.borderColor='transparent'">
+    // HTML da Lista
+    const listHtml = events.map(e => {
+        const c = config[e.type] || config['other'];
+        const timeStr = e.time ? `<span class="tag-pill" style="margin-right:8px">${e.time}</span>` : '';
         
-        <img src="https://www.google.com/s2/favicons?domain=${b.url}&sz=32" width="20" height="20" style="border-radius:4px; opacity:0.8">
-        
-        <div style="flex:1; overflow:hidden;">
-            <!-- Link chama função openBookmark para registrar clique -->
-            <a onclick="app.openBookmark('${b.id}')" style="cursor:pointer; color:var(--text-main); text-decoration:none; font-weight:600; display:block; font-size:14px;">${b.title}</a>
-            <div class="muted" style="font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${b.url}</div>
-        </div>
-        
-        <div style="display:flex; gap:10px; align-items:center">
-            <span class="tag-pill" style="background:${b.color||'#6366f1'}22; color:${b.color||'#6366f1'}">${b.category||'Geral'}</span>
-            <button class="btn ghost danger" style="padding:6px" onclick="app.delBookmark('${b.id}')"><i class="ph ph-trash"></i></button>
-        </div>
-    </div>`;
-};
-
-// NOVA FUNÇÃO: Abre e Salva Histórico
-app.openBookmark = (id) => {
-    const b = app.state.bookmarks.find(x => x.id === id);
-    if(b) {
-        b.lastUsed = Date.now(); // Atualiza data
-        app.saveState();
-        window.open(b.url, '_blank');
-    }
-};
-
-app.addBookmarkPrompt = () => {
-    app.openModal(`
-        <h3>Adicionar Bookmark</h3>
-        <label class="muted" style="font-size:11px">URL</label>
-        <input id="bmUrl" placeholder="https://..." style="margin-bottom:10px">
-        <label class="muted" style="font-size:11px">Título</label>
-        <input id="bmTitle" placeholder="Ex: Google" style="margin-bottom:10px">
-        <div style="display:flex; gap:10px; margin-bottom:10px">
+        return `
+        <div class="card" style="margin-bottom:10px; padding:12px; display:flex; align-items:center; border-left:4px solid ${c.color}; cursor:pointer" onclick="app.editEvent('${e.id}')">
             <div style="flex:1">
-                <label class="muted" style="font-size:11px">Pasta</label>
-                <input id="bmCat" placeholder="Ex: Trabalho" list="catList">
-                <datalist id="catList">${[...new Set(app.state.bookmarks.map(b=>b.category))].map(c=>`<option value="${c}">`).join('')}</datalist>
+                <div style="font-weight:600; font-size:15px">${e.title}</div>
+                <div class="muted" style="font-size:12px; margin-top:4px">
+                    ${timeStr}
+                    <i class="ph ${c.icon}"></i> ${c.label}
+                </div>
             </div>
-            <div>
-                <label class="muted" style="font-size:11px">Cor</label>
-                <input type="color" id="bmColor" value="#a855f7" style="width:50px; padding:0; height:42px; background:none; border:none; display:block">
-            </div>
+            <button class="btn ghost"><i class="ph ph-pencil-simple"></i></button>
+        </div>`;
+    }).join('');
+
+    app.openModal(`
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
+            <h3 style="margin:0; text-transform:capitalize">${dateTitle}</h3>
+            <span class="tag-pill">${events.length} eventos</span>
+        </div>
+        <div style="max-height:60vh; overflow-y:auto; margin-bottom:15px; padding-right:5px">
+            ${listHtml}
         </div>
         <div class="modal-actions">
-            <button class="btn ghost" onclick="app.closeModal()">Cancelar</button>
-            <button class="btn" onclick="app.saveBookmark()">Salvar</button>
+            <button class="btn ghost" onclick="app.closeModal()">Fechar</button>
+            <button class="btn" onclick="app.addEventPrompt('${dateStr}')">+ Novo Evento</button>
         </div>
     `);
 };
 
-app.saveBookmark = () => {
-    let url = document.getElementById('bmUrl').value;
-    const title = document.getElementById('bmTitle').value;
-    const category = document.getElementById('bmCat').value;
-    const color = document.getElementById('bmColor').value;
-    if(!url) return app.toast("URL obrigatória", "error");
-    if(!url.startsWith('http')) url = 'https://' + url;
+// --- MODAIS PADRÃO (CRIAR/EDITAR) ---
+
+app.addEventPrompt = (preDate = '') => {
+    // Fecha modal anterior se houver (caso venha do openDayDetails)
+    // Mas mantém o backdrop. O app.openModal substitui o conteúdo.
     
-    app.state.bookmarks.push({
-        id: app.uid(), url, title: title || url, category: category || 'Geral', color,
-        lastUsed: Date.now() // Já nasce com data para aparecer em recentes
-    });
-    app.saveState(); app.closeModal(); app.renderBookmarkList();
+    const defDate = preDate || new Date().toISOString().slice(0,10);
+    const config = (typeof EV_CONFIG !== 'undefined') ? EV_CONFIG : { 'other': { label: 'Outro' } };
+
+    app.openModal(`
+        <h3>Novo Evento</h3>
+        <input id="evTitle" placeholder="Título do evento" style="margin-bottom:12px">
+        <div style="display:flex; gap:12px; margin-bottom:12px">
+            <div style="flex:1">
+                <label class="muted" style="font-size:11px">Data</label>
+                <input id="evDate" type="date" value="${defDate}">
+            </div>
+            <div style="width: 100px;">
+                <label class="muted" style="font-size:11px">Hora</label>
+                <input id="evTime" type="time">
+            </div>
+        </div>
+        <label class="muted" style="font-size:11px">Tipo</label>
+        <select id="evType" style="margin-bottom:20px">
+            ${Object.keys(config).map(k => `<option value="${k}">${config[k].label}</option>`).join('')}
+        </select>
+        <div class="modal-actions">
+            <button class="btn ghost" onclick="app.closeModal()">Cancelar</button>
+            <button class="btn" id="saveEvBtn">Salvar</button>
+        </div>
+    `);
+
+    document.getElementById('saveEvBtn').onclick = () => {
+        const title = document.getElementById('evTitle').value;
+        const date = document.getElementById('evDate').value;
+        const time = document.getElementById('evTime').value;
+        const type = document.getElementById('evType').value;
+        
+        if(title && date) {
+            app.state.events.push({ id: app.uid(), title, date, time, type });
+            app.saveState(); 
+            app.closeModal(); 
+            const content = document.getElementById('content');
+            if(content) app.render_calendar(content);
+        }
+    };
 };
 
-app.delBookmark = (id) => { 
-    app.confirmModal('Remover?', ()=>{ 
-        app.state.bookmarks = app.state.bookmarks.filter(x=>x.id!==id); 
-        app.saveState(); app.renderBookmarkList(); 
-    }); 
+app.editEvent = (id) => {
+    const ev = app.state.events.find(x => x.id === id);
+    if(!ev) return;
+
+    const config = (typeof EV_CONFIG !== 'undefined') ? EV_CONFIG : {};
+
+    app.openModal(`
+        <h3>Editar Evento</h3>
+        <input id="evTitleEd" value="${ev.title}" style="margin-bottom:12px">
+        <div style="display:flex; gap:12px; margin-bottom:12px">
+            <div style="flex:1">
+                <label class="muted" style="font-size:11px">Data</label>
+                <input id="evDateEd" type="date" value="${ev.date}">
+            </div>
+            <div style="width: 100px;">
+                <label class="muted" style="font-size:11px">Hora</label>
+                <input id="evTimeEd" type="time" value="${ev.time || ''}">
+            </div>
+        </div>
+        <label class="muted" style="font-size:11px">Tipo</label>
+        <select id="evTypeEd" style="margin-bottom:20px">
+            ${Object.keys(config).map(k => `<option value="${k}" ${ev.type===k?'selected':''}>${config[k].label}</option>`).join('')}
+        </select>
+        <div class="modal-actions">
+            <button class="btn danger" id="delEvBtn">Excluir</button>
+            <button class="btn" id="saveEvEdBtn">Salvar</button>
+        </div>
+    `);
+
+    document.getElementById('saveEvEdBtn').onclick = () => {
+        ev.title = document.getElementById('evTitleEd').value;
+        ev.date = document.getElementById('evDateEd').value;
+        ev.time = document.getElementById('evTimeEd').value;
+        ev.type = document.getElementById('evTypeEd').value;
+        
+        app.saveState(); 
+        app.closeModal(); 
+        const content = document.getElementById('content');
+        if(content) app.render_calendar(content);
+    };
+
+    document.getElementById('delEvBtn').onclick = () => {
+        app.confirmModal('Excluir este evento?', () => {
+            app.state.events = app.state.events.filter(x=>x.id !== id);
+            app.saveState(); 
+            app.closeModal(); 
+            const content = document.getElementById('content');
+            if(content) app.render_calendar(content);
+        });
+    };
+};
+
+app.syncToCalendar = (refId, title, date, type='deadline') => {
+    app.state.events = app.state.events.filter(e => e.refId !== refId);
+    if(date) {
+        app.state.events.push({
+            id: app.uid(), refId: refId, title: `Prazo: ${title}`, date: date, time: '', type: type 
+        });
+    }
+};
+
+// --- RENDERIZADOR PRINCIPAL ---
+
+app.render_calendar = (root) => {
+    const year = app.calendarCursor.getFullYear();
+    const month = app.calendarCursor.getMonth();
+    const monthName = app.calendarCursor.toLocaleString('pt-BR', {month:'long', year:'numeric'});
+    
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay();
+    
+    const config = (typeof EV_CONFIG !== 'undefined') ? EV_CONFIG : { 'other': { icon: 'ph-calendar-blank', color: '#94a3b8' } };
+
+    let html = `
+    <div class="grid">
+        <div class="col-12 card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+                <div style="display:flex; gap:10px; align-items:center">
+                    <button class="btn ghost" onclick="app.calNav(-1)"><i class="ph ph-caret-left"></i></button>
+                    <h3 style="margin:0; text-transform:capitalize; width:180px; text-align:center">${monthName}</h3>
+                    <button class="btn ghost" onclick="app.calNav(1)"><i class="ph ph-caret-right"></i></button>
+                </div>
+                <button class="btn" onclick="app.addEventPrompt()">+ Novo Evento</button>
+            </div>
+            <div class="calendar-grid">
+                ${['DOM','SEG','TER','QUA','QUI','SEX','SAB'].map(d=>`<div class="cal-head">${d}</div>`).join('')}
+                ${Array(firstDay).fill('<div></div>').join('')}
+                ${Array.from({length:daysInMonth}, (_,i)=>i+1).map(d => {
+                    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    const isToday = new Date().toISOString().slice(0,10) === dateStr;
+                    
+                    // Ordenação
+                    const evs = app.state.events
+                        .filter(e => e.date === dateStr)
+                        .sort((a,b) => (a.time || '').localeCompare(b.time || ''));
+                    
+                    // --- LÓGICA DE LIMITE VISUAL ---
+                    const MAX_VISIBLE = 3;
+                    const isOverflow = evs.length > MAX_VISIBLE;
+                    
+                    // Se estourar o limite, mostra apenas os 2 primeiros e o botão de mais
+                    // Se não estourar, mostra todos (até 3)
+                    const visibleEvents = isOverflow ? evs.slice(0, 2) : evs;
+                    const remaining = evs.length - 2;
+
+                    // Define a ação do clique no dia:
+                    // Se tem overflow, abre a lista do dia. Se não, abre 'criar novo'.
+                    const dayAction = isOverflow ? `app.openDayDetails('${dateStr}')` : `app.addEventPrompt('${dateStr}')`;
+
+                    let eventsHtml = visibleEvents.map(e => {
+                        const c = config[e.type] || config['other'];
+                        const timeDisplay = e.time ? `<span style="font-size:9px; opacity:0.8; margin-right:2px">${e.time}</span>` : '';
+                        
+                        return `<div class="event-dot ev-type-${e.type}" onclick="event.stopPropagation(); app.editEvent('${e.id}')">
+                            ${timeDisplay} <i class="ph ${c.icon}" style="font-size:10px;"></i> ${e.title}
+                        </div>`;
+                    }).join('');
+
+                    if (isOverflow) {
+                        eventsHtml += `
+                            <div class="event-dot" style="background:rgba(255,255,255,0.1); color:var(--text-muted); justify-content:center; font-weight:600">
+                                + ${remaining} mais
+                            </div>
+                        `;
+                    }
+
+                    return `
+                        <div class="cal-day" style="${isToday ? 'background:rgba(99,102,241,0.1); border:1px solid var(--primary)' : ''}" onclick="${dayAction}">
+                            <span style="font-weight:700; opacity:${isToday?1:0.5}">${d}</span>
+                            <div style="display:flex; flex-direction:column; gap:2px; margin-top:4px;">
+                                ${eventsHtml}
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    </div>`;
+    root.innerHTML = html;
 };
