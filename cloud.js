@@ -95,18 +95,17 @@ const cloudModule = {
     async logout() {
         console.log("Saindo...");
         
-        // LIMPEZA GERAL DE SEGURANÇA
+        // 1. Limpeza de dados locais do FLUXO
         localStorage.removeItem('fluxo_user_cache');
         localStorage.removeItem('fluxo_guest_mode');
-        localStorage.removeItem('fluxo_google_key'); // <--- ADICIONE ESTA LINHA (Remove a API Key)
+        localStorage.removeItem('fluxo_google_key');
         
-        if(_client) _client.auth.signOut().catch(console.warn);
-        window.location.reload();
+        // 2. Aguarda o Supabase finalizar o logout completamente
+        if(_client) {
+            await _client.auth.signOut();
+        }
         
-        // Desloga no servidor
-        if(_client) await _client.auth.signOut();
-        
-        // Recarrega para bloquear
+        // 3. Só agora recarrega a página
         window.location.reload();
     },
 
@@ -183,3 +182,4 @@ const bindCloud = setInterval(() => {
         clearInterval(bindCloud);
     }
 }, 100);
+
